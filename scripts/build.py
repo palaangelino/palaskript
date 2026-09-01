@@ -113,9 +113,18 @@ def main() -> int:
         run([python, "-m", "ruff", "check", "palaskript", "tests", "scripts"])
         run([python, "-m", "pytest", "tests", "-q"])
 
-    icon = ROOT / "assets" / "icon.ico"
-    if not icon.exists():
-        print("Marka gorselleri yok, uretiliyor...")
+    # Marka gorsellerinin HEPSI yerinde mi. Yalnizca ikona bakmak yetmiyor:
+    # sihirbaz gorselleri eksikse Inno Setup adimi patliyor ve bu ancak
+    # dakikalarca suren paketlemeden SONRA anlasiliyor.
+    brand_assets = [
+        ROOT / "assets" / "icon.ico",
+        ROOT / "assets" / "check-light.png",
+        ROOT / "assets" / "heart-accent.png",
+        ROOT / "assets" / "installer" / "wizard-large-164x314.bmp",
+        ROOT / "assets" / "installer" / "wizard-small-55x58.bmp",
+    ]
+    if any(not path.exists() for path in brand_assets):
+        print("Marka gorselleri eksik, uretiliyor...")
         run([python, str(ROOT / "scripts" / "make_brand.py")])
 
     started = time.monotonic()
