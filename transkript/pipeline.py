@@ -20,7 +20,7 @@ from pathlib import Path
 from . import catalog, paths
 from . import chapters as chapters_mod
 from . import segments as seg_mod
-from .audio import iter_windows, probe_duration
+from .audio import AudioDecodeError, export_archive_audio, iter_windows, probe_duration
 from .checkpoint import Checkpoint
 from .config import Settings
 from .datatypes import SourceInfo, TranscriptDoc
@@ -241,17 +241,28 @@ def run_job(
         result.txt_path = txt_export.write(doc, out_dir / f"{stem}.txt", settings)
 
     # ------------------------------------------------------- 6. temizlik
-    if source.kind == "youtube" and source.audio_path:
-        if settings.keep_audio:
-            kept = out_dir / f"{stem}{Path(source.audio_path).suffix}"
+    # Ses saklanacaksa arsivlik formata cevrilip cikti klasorune yaziliyor.
+    # Indirilen ham dosya 3.5 saatlik video icin ~150 MB; Opus 24 kbps mono
+    # ayni konusmayi ~38 MB'a indiriyor ve konusma icin tasarlanmis bir codec.
+    if settings.keep_audio and source.kind == "youtube" and source.audio_path:
+        report("export", 0.85, "Ses arsivleniyor")
+        try:
+            result.audio_path = export_archive_audio(
+                Path(source.audio_path), out_dir / f"{stem}.opus"
+            )
+        except AudioDecodeError as exc:
+            # Arsivleme basarisiz olursa ham dosyayi tasi: kaybetmekten iyi.
+            warnings.append(f"Ses arsivlenemedi, ham dosya saklandi: {exc}")
+            fallback = out_dir / f"{stem}{Path(source.audio_path).suffix}"
             try:
-                shutil.move(str(source.audio_path), kept)
-                result.audio_path = kept
+                shutil.move(str(source.audio_path), fallback)
+                result.audio_path = fallback
             except OSError:
                 result.audio_path = Path(source.audio_path)
-        else:
-            shutil.rmtree(work_dir, ignore_errors=True)
-    elif source.kind == "youtube":
+
+    # Calisma dizini her durumda gidiyor: indirilen ses, altyazi dosyalari ve
+    # yarim kalmis parcalar burada birikirse gigabaytlari yiyor.
+    if result.audio_path is None or result.audio_path.parent != work_dir:
         shutil.rmtree(work_dir, ignore_errors=True)
 
     Checkpoint(job_id).clear()

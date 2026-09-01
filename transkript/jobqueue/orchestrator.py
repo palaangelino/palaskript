@@ -11,6 +11,7 @@ Kuyruk uzun birakildiginda indirme beklemesi tamamen ortadan kalkiyor.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import multiprocessing as mp
 import queue as queue_mod
@@ -165,13 +166,6 @@ class Orchestrator:
 
     # ---------------------------------------------------------- tek is
 
-    def _needs_subtitle_decision(self, job: Job) -> bool:
-        return (
-            job.kind == "youtube"
-            and job.use_subtitles is None
-            and self.settings.manual_subtitle_policy == "ask"
-        )
-
     def _resolve_subtitle_decision(self, job: Job) -> bool | None:
         """Karar gerekiyorsa isi beklemeye alip None doner."""
         policy = self.settings.manual_subtitle_policy
@@ -265,6 +259,10 @@ class Orchestrator:
             if process.is_alive():
                 process.terminate()
                 process.join(timeout=5.0)
+            # Kuyrugu kapatmazsak besleyici is parcacigi is basina birikiyor.
+            progress_queue.close()
+            with contextlib.suppress(Exception):
+                progress_queue.join_thread()
             with self._lock:
                 self._cancel_event = None
                 self._process = None
