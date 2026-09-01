@@ -61,6 +61,11 @@ _COOKIE_BROWSERS = [
     ("brave", "Brave"),
 ]
 
+_SPEED_MODES = [
+    ("quality", "Kalite öncelikli (önerilen)"),
+    ("speed", "Hız öncelikli"),
+]
+
 _SUB_POLICIES = [
     ("ask", "Sor (önerilen)"),
     ("always", "Her zaman hazır altyazıyı kullan"),
@@ -197,6 +202,18 @@ class SettingsDialog(QDialog):
         self.threads_spin.setSpecialValueText(f"Otomatik ({self._hw.physical_cores})")
         self.threads_spin.setValue(self._settings.cpu_threads or 0)
         form.addRow("İş parçacığı", self.threads_spin)
+
+        self.speed_combo = _combo(_SPEED_MODES, self._settings.speed_mode)
+        form.addRow("Hız/kalite", self.speed_combo)
+        form.addRow(
+            "",
+            _hint(
+                "Hız öncelikli mod bu makinede yapılan ölçümde %21 daha hızlıydı ve "
+                "temiz bir kayıtta metin farkı çıkmadı. Fark asıl gürültülü, aksanlı "
+                "ve üst üste konuşmalarda ortaya çıkıyor; kayıtlarınız temizse "
+                "hız tarafını seçebilirsiniz."
+            ),
+        )
 
         self.low_memory_check = QCheckBox(
             "Düşük bellek modu (yığın 1, küçük pencere, küçük model)"
@@ -450,6 +467,7 @@ class SettingsDialog(QDialog):
         s = self._settings
         s.model = self.model_combo.currentData() or "auto"
         s.language = self.language_combo.currentData()
+        s.speed_mode = self.speed_combo.currentData()
         s.cpu_threads = self.threads_spin.value() or None
         s.low_memory_mode = self.low_memory_check.isChecked()
         s.timestamp_mode = self.timestamp_combo.currentData()

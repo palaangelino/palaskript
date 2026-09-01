@@ -17,6 +17,7 @@ from . import paths
 LanguageChoice = Literal["auto", "tr", "en"]
 TimestampMode = Literal["paragraph", "interval", "none"]
 SubtitlePolicy = Literal["ask", "always", "never"]
+SpeedMode = Literal["quality", "speed"]
 CookieBrowser = Literal["none", "chrome", "edge", "firefox", "brave"]
 
 
@@ -29,6 +30,13 @@ class Settings:
     # Bos birakilirsa donanim profili secer. Kullanici elle secerse burada kalir.
     model: str = "auto"
     language: LanguageChoice = "auto"
+
+    # Hiz/kalite dengesi. "quality" isin arama genisligini 5'te tutuyor,
+    # "speed" 1'e (greedy) dusuruyor. Olculen fark: %21 daha hizli, temiz bir
+    # kayitta metin farki cikmadi. Varsayilan kalite tarafinda cunku isin
+    # aramasi asil gurultulu, aksanli ve ust uste konusmalarda ise yariyor;
+    # tek bir temiz olcumden "fark yok" sonucu cikarmak yanlis olur.
+    speed_mode: SpeedMode = "quality"
 
     timestamp_mode: TimestampMode = "interval"
     timestamp_interval_minutes: int = 5

@@ -122,6 +122,7 @@ class MainWindow(QMainWindow):
         self._update_thread: QThread | None = None
         self._update_worker: UpdateChecker | None = None
         self._pending_release = None
+        self._update_manual = False
         # Is basina son GERCEK kalan sure ve alindigi an. Bildirimler
         # dakikalar arayla geldigi icin arasi burada sayiliyor.
         self._eta_anchors: dict[str, tuple[float, float]] = {}
@@ -687,7 +688,14 @@ class MainWindow(QMainWindow):
         thread = QThread(self)
         worker.moveToThread(thread)
         thread.started.connect(worker.run)
-        worker.found.connect(lambda release: self._on_update_found(release, manual))
+        # Sinyal BAGLI METODA baglaniyor, lambda'ya DEGIL. Lambda'ya
+        # baglandiginda Qt alicinin hangi is parcaciginda oldugunu
+        # belirleyemiyor ve dogrudan baglanti kuruyor: slot isci is
+        # parcaciginda calisiyor, oradan acilan modal pencere donuyor.
+        # Bagli metot MainWindow'a ait oldugu icin Qt kuyruklu baglanti
+        # kuruyor ve slot arayuz is parcaciginda calisiyor.
+        self._update_manual = manual
+        worker.found.connect(self._on_update_found)
         worker.found.connect(thread.quit)
         thread.finished.connect(self._clear_update_thread)
         self._update_thread = thread
@@ -700,7 +708,8 @@ class MainWindow(QMainWindow):
         self._update_thread = None
         self._update_worker = None
 
-    def _on_update_found(self, release, manual: bool) -> None:  # noqa: ANN001 - Release | None
+    def _on_update_found(self, release) -> None:  # noqa: ANN001 - Release | None
+        manual = self._update_manual
         self._pending_release = release
         if release is None:
             if manual:

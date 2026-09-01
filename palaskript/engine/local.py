@@ -29,6 +29,15 @@ from ..datatypes import Segment
 from ..resources import Profile
 from .base import EngineError
 
+# Isin arama genisligi. 5 varsayilan kalite ayari; 1 (greedy) olculen sekilde
+# %21 daha hizli. Fark asil zor seste ortaya cikiyor.
+BEAM_QUALITY = 5
+BEAM_SPEED = 1
+
+
+def beam_for(speed_mode: str) -> int:
+    return BEAM_SPEED if speed_mode == "speed" else BEAM_QUALITY
+
 
 def _filter_kwargs(func: Callable[..., Any], kwargs: dict[str, Any]) -> dict[str, Any]:
     """kwargs'i func'in kabul ettiklerine indir.

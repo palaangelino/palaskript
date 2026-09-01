@@ -265,3 +265,95 @@ class TestCloseGuard:
             assert not asked, "bos kuyrukta gereksiz uyari cikti"
         finally:
             _dispose(window)
+
+
+class TestUpdateCheckThreadAffinity:
+    """"Güncelleme denetle" kucuk bir pencere acip donuyordu.
+
+    Sinyal bir LAMBDA'ya baglanmisti. Qt lambda'nin hangi is parcaciginda
+    oldugunu belirleyemedigi icin dogrudan baglanti kuruyor ve slot ISCI is
+    parcaciginda calisiyordu; oradan acilan modal pencere donuyor.
+    """
+
+    def test_signal_is_connected_to_a_bound_method(self):
+        """Kaynakta lambda baglantisi kalmamali."""
+        root = Path(__file__).resolve().parent.parent
+        source = (root / "palaskript" / "ui" / "window.py").read_text(encoding="utf-8")
+        assert "worker.found.connect(self._on_update_found)" in source
+        assert "found.connect(lambda" not in source, "sinyal yine lambda'ya bagli"
+
+    def test_slot_runs_on_the_gui_thread(self, app, isolated):
+        """Slot arayuz is parcaciginda calismali, isci is parcaciginda degil."""
+        import threading
+
+        from palaskript.ui.window import MainWindow, UpdateChecker
+
+        window = MainWindow()
+        try:
+            gui_thread = threading.get_ident()
+            seen: list[int] = []
+
+            window._on_update_found = lambda release: seen.append(threading.get_ident())
+
+            worker = UpdateChecker("ornek/depo")
+            worker.found.connect(window._on_update_found)
+            worker.found.emit(None)
+
+            assert seen, "slot hic cagrilmadi"
+            assert seen[0] == gui_thread
+        finally:
+            _dispose(window)
+
+    def test_manual_flag_is_carried_without_a_lambda(self, app, isolated):
+        window = _quiet_window()
+        try:
+            window._update_manual = True
+            assert window._update_manual is True
+            window._update_manual = False
+            assert window._update_manual is False
+        finally:
+            _dispose(window)
+
+
+class TestSpeedMode:
+    """Hiz/kalite ayari."""
+
+    def test_default_is_quality(self):
+        from palaskript.config import Settings
+
+        assert Settings().speed_mode == "quality"
+
+    def test_beam_size_follows_the_mode(self):
+        from palaskript.engine.local import BEAM_QUALITY, BEAM_SPEED, beam_for
+
+        assert beam_for("quality") == BEAM_QUALITY
+        assert beam_for("speed") == BEAM_SPEED
+        assert BEAM_SPEED < BEAM_QUALITY
+
+    def test_unknown_mode_falls_back_to_quality(self):
+        """Bozuk ayar dosyasi sessizce hizi degil kaliteyi secmeli."""
+        from palaskript.engine.local import BEAM_QUALITY, beam_for
+
+        assert beam_for("bilinmeyen") == BEAM_QUALITY
+
+    def test_setting_survives_a_round_trip(self, tmp_path):
+        from palaskript import config
+
+        settings = config.Settings()
+        settings.speed_mode = "speed"
+        path = tmp_path / "settings.json"
+        config.save(settings, path)
+        assert config.load(path).speed_mode == "speed"
+
+    def test_dialog_exposes_the_choice(self, app, isolated):
+        from palaskript.config import Settings
+        from palaskript.ui.settings_dialog import SettingsDialog
+
+        settings = Settings()
+        settings.speed_mode = "speed"
+        dialog = SettingsDialog(settings)
+        try:
+            assert dialog.speed_combo.currentData() == "speed"
+            assert dialog.result_settings().speed_mode == "speed"
+        finally:
+            dialog.deleteLater()

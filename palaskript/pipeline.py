@@ -202,7 +202,8 @@ def run_job(
             resume=resume,
             warnings=warnings,
         )
-        model_label = f"faster-whisper {profile.model} (int8, CPU)"
+        mode = "hız" if settings.speed_mode == "speed" else "kalite"
+        model_label = f"faster-whisper {profile.model} (int8, CPU, {mode})"
         measured_stats = stats
 
     # ------------------------------------------------------- 4. belgelestir
@@ -295,7 +296,7 @@ def _transcribe(
     Her pencere sonunda ara kayit isaretleniyor; cokme sonrasi is o noktadan
     devam ediyor.
     """
-    from .engine.local import LocalWhisperEngine
+    from .engine.local import LocalWhisperEngine, beam_for
 
     language = None if settings.language == "auto" else settings.language
     checkpoint = Checkpoint(job_id)
@@ -315,7 +316,9 @@ def _transcribe(
     assembler.segments.extend(prior_segments)
 
     guard = MemoryGuard(profile)
-    engine = LocalWhisperEngine(model_dir, profile, language=language)
+    engine = LocalWhisperEngine(
+        model_dir, profile, language=language, beam_size=beam_for(settings.speed_mode)
+    )
 
     processed = start_at
     wall_start = time.monotonic()

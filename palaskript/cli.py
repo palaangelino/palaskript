@@ -34,6 +34,11 @@ def _build_parser() -> argparse.ArgumentParser:
         choices=["auto", "tr", "en"],
         help="Dil. auto secilirse TR/EN karışık içerikte segment bazında algılar.",
     )
+    parser.add_argument(
+        "--fast",
+        action="store_true",
+        help="Hız öncelikli mod (~%%21 daha hızlı, zor seste kalite düşebilir)",
+    )
     parser.add_argument("--out", type=Path, help="Çıktı klasörü")
     parser.add_argument("--threads", type=int, help="CPU iş parçacığı sayısı")
     parser.add_argument(
@@ -126,6 +131,8 @@ def main(argv: list[str] | None = None) -> int:
         settings.keep_audio = True
     if args.low_memory:
         settings.low_memory_mode = True
+    if args.fast:
+        settings.speed_mode = "speed"
 
     try:
         sources = resolver.resolve_one(args.input, cookie_browser=settings.cookie_browser)
