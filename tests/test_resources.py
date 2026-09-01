@@ -120,7 +120,7 @@ class TestMemoryGuard:
         guard = MemoryGuard(Profile("large-v3-turbo", 8, 600, 4), floor_gb=99999)
         batch, note = guard.check()
         assert batch == 4
-        assert note is not None and "yigin" in note
+        assert note is not None and "yığın" in note
 
     def test_keeps_batch_when_memory_is_fine(self):
         guard = MemoryGuard(Profile("large-v3-turbo", 8, 600, 4), floor_gb=0.0)

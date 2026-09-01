@@ -286,8 +286,8 @@ class Orchestrator:
                 # yetersizligi veya yerel kutuphane cokmesi.
                 self.db.mark_failed(
                     job.id,
-                    "Islem beklenmedik sekilde sonlandi. Bellek yetersiz olabilir; "
-                    "ayarlardan dusuk bellek modunu acip tekrar deneyin.",
+                    "İşlem beklenmedik şekilde sonlandı. Bellek yetersiz olabilir; "
+                    "ayarlardan düşük bellek modunu açıp tekrar deneyin.",
                 )
             return
 
@@ -306,7 +306,7 @@ class Orchestrator:
                 audio_path=data.get("audio_path"),
                 message="; ".join(warnings) if warnings else None,
             )
-            self._notify("Transkript hazir", job.title)
+            self._notify("Transkript hazır", job.title)
 
     # ----------------------------------------------------------- on indirme
 

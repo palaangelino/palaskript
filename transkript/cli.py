@@ -25,33 +25,33 @@ from .source import resolver
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="transkript-cli",
-        description="YouTube linkinden veya yerel videodan PDF transkript uretir.",
+        description="YouTube linkinden veya yerel videodan PDF transkript üretir.",
     )
     parser.add_argument("input", nargs="?", help="YouTube adresi veya dosya yolu")
     parser.add_argument("--model", choices=sorted(MODEL_CATALOG), help="Whisper modeli")
     parser.add_argument(
         "--lang",
         choices=["auto", "tr", "en"],
-        help="Dil. auto, TR/EN karisik icerikte segment bazinda algilar.",
+        help="Dil. auto secilirse TR/EN karışık içerikte segment bazında algılar.",
     )
-    parser.add_argument("--out", type=Path, help="Cikti klasoru")
-    parser.add_argument("--threads", type=int, help="CPU is parcacigi sayisi")
+    parser.add_argument("--out", type=Path, help="Çıktı klasörü")
+    parser.add_argument("--threads", type=int, help="CPU iş parçacığı sayısı")
     parser.add_argument(
         "--subs",
         action="store_true",
-        help="Videoda insan eliyle yazilmis altyazi varsa Whisper yerine onu kullan",
+        help="Videoda insan eliyle yazılmış altyazı varsa Whisper yerine onu kullan",
     )
-    parser.add_argument("--no-pdf", action="store_true", help="PDF uretme")
-    parser.add_argument("--no-txt", action="store_true", help="TXT uretme")
-    parser.add_argument("--keep-audio", action="store_true", help="Indirilen sesi sakla")
+    parser.add_argument("--no-pdf", action="store_true", help="PDF üretme")
+    parser.add_argument("--no-txt", action="store_true", help="TXT üretme")
+    parser.add_argument("--keep-audio", action="store_true", help="İndirilen sesi sakla")
     parser.add_argument(
-        "--low-memory", action="store_true", help="Dusuk bellek modu (yigin 1, kucuk pencere)"
-    )
-    parser.add_argument(
-        "--no-resume", action="store_true", help="Ara kayittan devam etme, bastan basla"
+        "--low-memory", action="store_true", help="Düşük bellek modu (yığın 1, küçük pencere)"
     )
     parser.add_argument(
-        "--info", action="store_true", help="Donanim profilini yazdir ve cik"
+        "--no-resume", action="store_true", help="Ara kayıttan devam etme, baştan başla"
+    )
+    parser.add_argument(
+        "--info", action="store_true", help="Donanım profilini yazdır ve çık"
     )
     parser.add_argument("--version", action="version", version=f"Transkript {__version__}")
     return parser
@@ -60,11 +60,11 @@ def _build_parser() -> argparse.ArgumentParser:
 def _print_hardware() -> None:
     hw = detect()
     profile = choose_profile(hw)
-    print("Donanim:", hw.describe())
-    print("Bos disk:", f"{hw.free_disk_gb:.1f} GB")
-    print("Secilen profil:", profile.describe())
+    print("Donanım:", hw.describe())
+    print("Boş disk:", f"{hw.free_disk_gb:.1f} GB")
+    print("Seçilen profil:", profile.describe())
     print()
-    print("Modeller:")
+    print(f"Modeller (RAM tahminleri yığın {profile.batch_size} için):")
     for name, reason in available_models(hw).items():
         spec = MODEL_CATALOG[name]
         ram = spec.ram_estimate_gb(profile.batch_size)
@@ -105,7 +105,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if not args.input:
-        parser.error("bir adres veya dosya yolu verin (veya --info kullanin)")
+        parser.error("bir adres veya dosya yolu verin (veya --info kullanın)")
 
     paths.ensure_dirs()
     settings = config.load()
@@ -134,12 +134,12 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     if not sources:
-        print("Islenecek bir sey bulunamadi.", file=sys.stderr)
+        print("İşlenecek bir şey bulunamadı.", file=sys.stderr)
         return 2
 
     hw = detect()
-    print(f"Donanim: {hw.describe()}")
-    print(f"{len(sources)} kaynak islenecek\n")
+    print(f"Donanım: {hw.describe()}")
+    print(f"{len(sources)} kaynak işlenecek\n")
 
     failures = 0
     for index, source in enumerate(sources, start=1):
@@ -158,12 +158,12 @@ def main(argv: list[str] | None = None) -> int:
             )
         except JobCancelled:
             printer.done()
-            print("  Iptal edildi.")
+            print("  İptal edildi.")
             failures += 1
             continue
         except KeyboardInterrupt:
             printer.done()
-            print("\n  Durduruldu. Ara kayit saklandi, tekrar calistirinca devam eder.")
+            print("\n  Durduruldu. Ara kayıt saklandı, tekrar çalıştırınca devam eder.")
             return 130
         except Exception as exc:  # noqa: BLE001
             printer.done()
@@ -175,13 +175,13 @@ def main(argv: list[str] | None = None) -> int:
         mins = result.elapsed_seconds / 60
         print(f"  {result.doc.word_count} kelime, {mins:.1f} dakikada")
         if result.from_subtitles:
-            print("  Kaynak: videonun hazir altyazisi")
+            print("  Kaynak: videonun hazır altyazısı")
         if result.pdf_path:
             print(f"  PDF: {result.pdf_path}")
         if result.txt_path:
             print(f"  TXT: {result.txt_path}")
         for warning in result.warnings:
-            print(f"  Uyari: {warning}")
+            print(f"  Uyarı: {warning}")
         print()
 
     return 1 if failures else 0

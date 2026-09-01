@@ -43,7 +43,7 @@ def _excepthook(exc_type, exc_value, exc_tb) -> None:  # noqa: ANN001 - sys imza
             QMessageBox.critical(
                 None,
                 "Beklenmeyen hata",
-                f"{exc_value}\n\nAyrinti kayit dosyasinda:\n{paths.logs_dir()}",
+                f"{exc_value}\n\nAyrıntı kayıt dosyasında:\n{paths.logs_dir()}",
             )
     except Exception:  # noqa: BLE001 - hata gostericisi de patlarsa sessiz kal
         pass

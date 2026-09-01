@@ -55,9 +55,13 @@ GPU kullanilmiyor, her sey CPU'da calisiyor. 3.5 saatlik bir video icin kaba bek
 `large-v3-turbo`, `large-v3` ile ayni encoder'i kullaniyor (asil bellek orada),
 sadece decoder'i kucuk. Bu yuzden RAM'i yari yariya dusuk ama kalitesi ona yakin.
 
-> Bu sayilar **tahmin**. Kendi makinenizde olcmek icin `scripts/benchmark.py`
-> kullanin, gercek degerler `transkript/resources.py` icindeki katalogla
-> karsilastirilir.
+**Olculen deger:** bu makinede (i7-1165G7, 4 cekirdek, GPU yok) `large-v3-turbo`
+14 dakikalik bir Turkce TEDx konusmasini 11.3 dakikada yazdi, yani **~1.25x gercek
+zaman**. Ayni oranla 3.5 saatlik video ~2.8 saat eder.
+
+> Tablodaki RAM rakamlari hala **tahmin**. Kendi makinenizde olcmek icin
+> `scripts/benchmark.py` kullanin; gercek tepe RSS degerleri
+> `transkript/resources.py` icindeki katalogla karsilastirilir.
 
 Uygulama, kuyruk calisirken bilgisayarin uyumasini engelliyor ve isci sureci
 dusuk oncelikte calistiriyor: gece boyu suren bir is sirasinda bilgisayar

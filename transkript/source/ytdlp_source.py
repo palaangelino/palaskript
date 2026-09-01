@@ -33,7 +33,7 @@ def _import_ytdlp():
     try:
         import yt_dlp
     except ImportError as exc:  # pragma: no cover - kurulum hatasi
-        raise YtDlpError("yt-dlp kurulu degil.") from exc
+        raise YtDlpError("yt-dlp kurulu değil.") from exc
     return yt_dlp
 
 
@@ -67,14 +67,14 @@ def _wrap_error(exc: Exception, url: str) -> YtDlpError:
     lowered = text.lower()
     if "sign in" in lowered or "age" in lowered or "private" in lowered:
         return YtDlpError(
-            "Bu video giris gerektiriyor (yas kisitli veya ozel olabilir). "
-            "Ayarlardan tarayici cerezi secip tekrar deneyin."
+            "Bu video giriş gerektiriyor (yaş kısıtlı veya özel olabilir). "
+            "Ayarlardan tarayıcı çerezi seçip tekrar deneyin."
         )
     if "unavailable" in lowered or "removed" in lowered:
-        return YtDlpError("Video kaldirilmis veya bu bolgede erisilebilir degil.")
+        return YtDlpError("Video kaldırılmış veya bu bölgede erişilebilir değil.")
     if "unsupported url" in lowered:
         return YtDlpError(f"Bu adres desteklenmiyor: {url}")
-    return YtDlpError(f"Video bilgisi alinamadi: {text}")
+    return YtDlpError(f"Video bilgisi alınamadı: {text}")
 
 
 def _webpage_url(entry: dict[str, Any]) -> str:
@@ -107,7 +107,7 @@ def _chapters_from(info: dict[str, Any], duration: float) -> list[Chapter]:
             Chapter(
                 start=float(start),
                 end=float(end) if end is not None else duration,
-                title=title or f"Bolum {len(chapters) + 1}",
+                title=title or f"Bölüm {len(chapters) + 1}",
                 origin="youtube",
             )
         )
@@ -132,7 +132,7 @@ def probe_flat(url: str, cookie_browser: str = "none") -> list[SourceInfo]:
         raise _wrap_error(exc, url) from exc
 
     if info is None:
-        raise YtDlpError(f"Video bilgisi alinamadi: {url}")
+        raise YtDlpError(f"Video bilgisi alınamadı: {url}")
 
     entries = info.get("entries") if info.get("_type") == "playlist" else None
     items = list(entries) if entries else [info]
@@ -146,7 +146,7 @@ def probe_flat(url: str, cookie_browser: str = "none") -> list[SourceInfo]:
             SourceInfo(
                 kind="youtube",
                 source_id=_source_id(entry),
-                title=(entry.get("title") or "Basliksiz").strip(),
+                title=(entry.get("title") or "Başlıksız").strip(),
                 duration=duration,
                 url=_webpage_url(entry),
                 channel=entry.get("uploader") or entry.get("channel"),
@@ -155,7 +155,7 @@ def probe_flat(url: str, cookie_browser: str = "none") -> list[SourceInfo]:
             )
         )
     if not results:
-        raise YtDlpError(f"Bu adreste video bulunamadi: {url}")
+        raise YtDlpError(f"Bu adreste video bulunamadı: {url}")
     return results
 
 
@@ -172,11 +172,11 @@ def probe_full(url: str, cookie_browser: str = "none") -> SourceInfo:
         raise _wrap_error(exc, url) from exc
 
     if info is None:
-        raise YtDlpError(f"Video bilgisi alinamadi: {url}")
+        raise YtDlpError(f"Video bilgisi alınamadı: {url}")
     if info.get("_type") == "playlist":
         entries = [e for e in (info.get("entries") or []) if e]
         if not entries:
-            raise YtDlpError(f"Bu adreste video bulunamadi: {url}")
+            raise YtDlpError(f"Bu adreste video bulunamadı: {url}")
         info = entries[0]
 
     duration = float(info.get("duration") or 0.0)
@@ -186,7 +186,7 @@ def probe_full(url: str, cookie_browser: str = "none") -> SourceInfo:
     return SourceInfo(
         kind="youtube",
         source_id=_source_id(info),
-        title=(info.get("title") or "Basliksiz").strip(),
+        title=(info.get("title") or "Başlıksız").strip(),
         duration=duration,
         url=_webpage_url(info),
         channel=info.get("uploader") or info.get("channel"),
@@ -258,7 +258,7 @@ def download_audio(
         if matches:
             return matches[0]
 
-    raise YtDlpError("Indirilen ses dosyasi bulunamadi.")
+    raise YtDlpError("İndirilen ses dosyası bulunamadı.")
 
 
 def fetch_manual_subtitles(

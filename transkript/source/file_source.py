@@ -36,16 +36,16 @@ def probe(path: Path) -> SourceInfo:
     """Yerel dosyayi okuyup SourceInfo uret."""
     resolved = path.resolve()
     if not resolved.exists():
-        raise FileNotFoundError(f"Dosya bulunamadi: {resolved}")
+        raise FileNotFoundError(f"Dosya bulunamadı: {resolved}")
     if not resolved.is_file():
-        raise ValueError(f"Bu bir dosya degil: {resolved}")
+        raise ValueError(f"Bu bir dosya değil: {resolved}")
 
     try:
         duration = probe_duration(resolved)
     except AudioDecodeError as exc:
         raise ValueError(
-            f"{resolved.name} icinde okunabilir ses bulunamadi. "
-            "Dosya bozuk olabilir veya ses akisi tasimayabilir."
+            f"{resolved.name} içinde okunabilir ses bulunamadı. "
+            "Dosya bozuk olabilir veya ses akışı taşımayabilir."
         ) from exc
 
     return SourceInfo(

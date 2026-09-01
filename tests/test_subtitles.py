@@ -97,6 +97,51 @@ class TestDedupe:
         assert len(segments) == 2
 
 
+class TestCreditLines:
+    """TED altyazilari neredeyse her zaman bir ceviri kunyesiyle basliyor.
+
+    Atilmazsa belgenin ilk paragrafi konusma yerine "Transcriber: ..." oluyor.
+    """
+
+    def test_drops_english_credit(self):
+        text = (
+            "WEBVTT\n\n"
+            "00:00:00.000 --> 00:00:03.000\nTranscriber: Esra Cakmak Reviewer: Can Boysan\n\n"
+            "00:00:04.000 --> 00:00:08.000\nBen bugun vicdan uzerine konusacagim.\n"
+        )
+        segments = subtitles.parse(text)
+        assert len(segments) == 1
+        assert segments[0].text.startswith("Ben bugun")
+
+    def test_drops_turkish_credit(self):
+        text = (
+            "WEBVTT\n\n"
+            "00:00:00.000 --> 00:00:03.000\nÇeviri: Ali Veli Gözden geçirme: Ayşe Fatma\n\n"
+            "00:00:04.000 --> 00:00:08.000\nGerçek konuşma burada başlıyor.\n"
+        )
+        segments = subtitles.parse(text)
+        assert len(segments) == 1
+        assert segments[0].text.startswith("Gerçek")
+
+    def test_keeps_credit_like_sentence_later_in_the_talk(self):
+        """Konusmanin ortasindaki gercek bir cumle silinmemeli."""
+        cues = ["WEBVTT", ""]
+        for index in range(6):
+            start = index * 5
+            cues.append(f"00:00:{start:02d}.000 --> 00:00:{start + 4:02d}.000")
+            cues.append(f"Normal cumle {index}")
+            cues.append("")
+        cues.append("00:00:40.000 --> 00:00:44.000")
+        cues.append("Çeviri: bu aslinda konusmanin bir parcasi")
+        cues.append("")
+
+        segments = subtitles.parse("\n".join(cues))
+        assert any(s.text.startswith("Çeviri:") for s in segments)
+
+    def test_keeps_everything_when_there_is_no_credit(self):
+        assert len(subtitles.parse(VTT)) == 2
+
+
 class TestEdgeCases:
     def test_empty_input(self):
         assert subtitles.parse("") == []

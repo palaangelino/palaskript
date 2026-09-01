@@ -116,7 +116,7 @@ def run_job(
 
     def check_cancel() -> None:
         if cancel and cancel():
-            raise JobCancelled("Is iptal edildi.")
+            raise JobCancelled("İş iptal edildi.")
 
     paths.ensure_dirs()
     hw = hardware or detect()
@@ -140,7 +140,7 @@ def run_job(
 
     # -------------------------------------------- 2. hazir altyazi kisayolu
     if use_subtitles and source.kind == "youtube":
-        report("subtitles", 0.1, "Hazir altyazi indiriliyor")
+        report("subtitles", 0.1, "Hazır altyazı indiriliyor")
         fetched = ytdlp_source.fetch_manual_subtitles(
             source, work_dir, cookie_browser=settings.cookie_browser
         )
@@ -149,7 +149,7 @@ def run_job(
             languages = [lang]
             from_subtitles = True
             model_label = f"YouTube altyazısı ({lang})"
-            report("subtitles", 1.0, f"Altyazi alindi ({len(doc_segments)} satir)")
+            report("subtitles", 1.0, f"Altyazı alındı ({len(doc_segments)} satır)")
         else:
             warnings.append("Hazır altyazı bulunamadı, Whisper ile yazıldı.")
 
@@ -169,7 +169,7 @@ def run_job(
         check_cancel()
 
         if audio_path is None or not Path(audio_path).exists():
-            raise FileNotFoundError("Islenecek ses dosyasi bulunamadi.")
+            raise FileNotFoundError("İşlenecek ses dosyası bulunamadı.")
 
         try:
             duration = probe_duration(audio_path)
@@ -205,7 +205,7 @@ def run_job(
         model_label = f"faster-whisper {profile.model} (int8, CPU)"
 
     # ------------------------------------------------------- 4. belgelestir
-    report("export", 0.0, "Belge hazirlaniyor")
+    report("export", 0.0, "Belge hazırlanıyor")
     paragraphs = seg_mod.build_paragraphs(doc_segments)
     doc_chapters = chapters_mod.build_chapters(
         source,
@@ -237,10 +237,10 @@ def run_job(
     )
 
     if settings.export_pdf:
-        report("export", 0.3, "PDF yaziliyor")
+        report("export", 0.3, "PDF yazılıyor")
         result.pdf_path = pdf_export.write(doc, out_dir / f"{stem}.pdf", settings)
     if settings.export_txt:
-        report("export", 0.7, "Metin dosyasi yaziliyor")
+        report("export", 0.7, "Metin dosyası yazılıyor")
         result.txt_path = txt_export.write(doc, out_dir / f"{stem}.txt", settings)
 
     # ------------------------------------------------------- 6. temizlik
@@ -248,14 +248,14 @@ def run_job(
     # Indirilen ham dosya 3.5 saatlik video icin ~150 MB; Opus 24 kbps mono
     # ayni konusmayi ~38 MB'a indiriyor ve konusma icin tasarlanmis bir codec.
     if settings.keep_audio and source.kind == "youtube" and source.audio_path:
-        report("export", 0.85, "Ses arsivleniyor")
+        report("export", 0.85, "Ses arşivleniyor")
         try:
             result.audio_path = export_archive_audio(
                 Path(source.audio_path), out_dir / f"{stem}.opus"
             )
         except AudioDecodeError as exc:
             # Arsivleme basarisiz olursa ham dosyayi tasi: kaybetmekten iyi.
-            warnings.append(f"Ses arsivlenemedi, ham dosya saklandi: {exc}")
+            warnings.append(f"Ses arşivlenemedi, ham dosya saklandı: {exc}")
             fallback = out_dir / f"{stem}{Path(source.audio_path).suffix}"
             try:
                 shutil.move(str(source.audio_path), fallback)
@@ -270,7 +270,7 @@ def run_job(
 
     Checkpoint(job_id).clear()
     result.elapsed_seconds = time.monotonic() - started
-    report("export", 1.0, "Tamamlandi")
+    report("export", 1.0, "Tamamlandı")
     return result
 
 
@@ -305,7 +305,7 @@ def _transcribe(
             report(
                 "transcribe",
                 start_at / duration if duration else 0.0,
-                f"Kaldigi yerden devam ediliyor ({chapters_mod.format_timestamp(start_at)})",
+                f"Kaldığı yerden devam ediliyor ({chapters_mod.format_timestamp(start_at)})",
             )
 
     assembler = seg_mod.TranscriptAssembler()
@@ -377,7 +377,7 @@ def _transcribe(
                 except EngineError as exc:
                     # Tek pencerenin patlamasi 3 saatlik isi cope atmasin.
                     warnings.append(
-                        f"{chapters_mod.format_timestamp(window.start)} civari atlandi: {exc}"
+                        f"{chapters_mod.format_timestamp(window.start)} civarı atlandı: {exc}"
                     )
                     produced = []
 

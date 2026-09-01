@@ -43,7 +43,7 @@ def normalize_chapters(raw: list[Chapter], duration: float) -> list[Chapter]:
         if end <= start:
             continue
         cleaned.append(
-            Chapter(start=start, end=end, title=ch.title.strip() or "Bolum", origin=ch.origin)
+            Chapter(start=start, end=end, title=ch.title.strip() or "Bölüm", origin=ch.origin)
         )
     return cleaned
 

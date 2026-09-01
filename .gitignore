@@ -20,3 +20,9 @@ benchmark-raporu.md
 # Editor
 .vscode/
 .idea/
+
+# Test ciktilari
+ciktilar/
+ciktilar-whisper/
+pdf_onizleme/
+karsilastirma.txt

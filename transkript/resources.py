@@ -46,11 +46,11 @@ class ModelSpec:
 MODEL_CATALOG: dict[str, ModelSpec] = {
     "small": ModelSpec(
         name="small",
-        label="Small (hizli, Turkce kalitesi zayif)",
+        label="Small (hızlı, Türkçe kalitesi zayıf)",
         download_gb=0.25,
         weights_gb=0.26,
         act_per_batch_gb=0.10,
-        quality="Zayif",
+        quality="Zayıf",
         min_total_ram_gb=0.0,
     ),
     "medium": ModelSpec(
@@ -64,7 +64,7 @@ MODEL_CATALOG: dict[str, ModelSpec] = {
     ),
     "large-v3-turbo": ModelSpec(
         name="large-v3-turbo",
-        label="Large v3 Turbo (onerilen)",
+        label="Large v3 Turbo (önerilen)",
         download_gb=1.6,
         weights_gb=0.83,
         act_per_batch_gb=0.26,
@@ -73,7 +73,7 @@ MODEL_CATALOG: dict[str, ModelSpec] = {
     ),
     "large-v3": ModelSpec(
         name="large-v3",
-        label="Large v3 (en iyi, yavas)",
+        label="Large v3 (en iyi, yavaş)",
         download_gb=3.1,
         weights_gb=1.62,
         act_per_batch_gb=0.51,
@@ -96,8 +96,8 @@ class HardwareInfo:
 
     def describe(self) -> str:
         return (
-            f"{self.total_ram_gb:.1f} GB RAM ({self.available_ram_gb:.1f} GB bos), "
-            f"{self.physical_cores} fiziksel / {self.logical_cores} mantiksal cekirdek"
+            f"{self.total_ram_gb:.1f} GB RAM ({self.available_ram_gb:.1f} GB boş), "
+            f"{self.physical_cores} fiziksel / {self.logical_cores} mantıksal çekirdek"
         )
 
 
@@ -113,8 +113,8 @@ class Profile:
 
     def describe(self) -> str:
         return (
-            f"{self.model}, yigin {self.batch_size}, "
-            f"{self.window_seconds // 60} dk pencere, {self.cpu_threads} is parcacigi"
+            f"{self.model}, yığın {self.batch_size}, "
+            f"{self.window_seconds // 60} dk pencere, {self.cpu_threads} iş parçacığı"
         )
 
 
@@ -169,7 +169,7 @@ def available_models(hw: HardwareInfo) -> dict[str, str | None]:
         if hw.total_ram_gb < spec.min_total_ram_gb:
             need = int(round(spec.min_total_ram_gb / 8.0) * 8) or 8
             result[name] = (
-                f"{spec.name} icin {need} GB RAM gerekir, sistemde {hw.total_ram_gb:.1f} GB var"
+                f"{spec.name} için {need} GB RAM gerekir, sistemde {hw.total_ram_gb:.1f} GB var"
             )
         else:
             result[name] = None
@@ -240,8 +240,8 @@ def check_disk_for_model(model: str, hw: HardwareInfo, *, headroom_gb: float = 1
     needed = spec.download_gb + headroom_gb
     if hw.free_disk_gb < needed:
         raise InsufficientDiskError(
-            f"{spec.name} modeli icin {needed:.1f} GB bos alan gerekiyor, "
-            f"diskte {hw.free_disk_gb:.1f} GB var. Yer acip tekrar deneyin."
+            f"{spec.name} modeli için {needed:.1f} GB boş alan gerekiyor, "
+            f"diskte {hw.free_disk_gb:.1f} GB var. Yer açıp tekrar deneyin."
         )
 
 
@@ -275,8 +275,8 @@ class MemoryGuard:
         self.batch_size = max(1, self.batch_size // 2)
         self.reductions += 1
         return self.batch_size, (
-            f"Bos bellek {available:.1f} GB'a dustu, yigin boyutu {self.batch_size} yapildi "
-            "(islem yavaslar, is devam ediyor)"
+            f"Boş bellek {available:.1f} GB'a düştü, yığın boyutu {self.batch_size} yapıldı "
+            "(işlem yavaşlar, iş devam ediyor)"
         )
 
 

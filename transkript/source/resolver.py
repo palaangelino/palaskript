@@ -52,12 +52,12 @@ def resolve_one(raw: str, *, cookie_browser: str = "none") -> list[SourceInfo]:
     if not path.exists():
         raise ResolveError(
             raw,
-            f"Ne gecerli bir adres ne de var olan bir dosya: {candidate}",
+            f"Ne geçerli bir adres ne de var olan bir dosya: {candidate}",
         )
     if path.is_dir():
         found = [p for p in sorted(path.iterdir()) if p.is_file() and file_source.is_media_file(p)]
         if not found:
-            raise ResolveError(raw, f"Klasorde medya dosyasi yok: {candidate}")
+            raise ResolveError(raw, f"Klasörde medya dosyası yok: {candidate}")
         return [file_source.probe(p) for p in found]
 
     return [file_source.probe(path)]

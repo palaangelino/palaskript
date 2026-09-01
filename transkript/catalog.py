@@ -116,17 +116,17 @@ def ensure_model(name: str, progress: ProgressCallback | None = None) -> Path:
     if error:
         shutil.rmtree(target, ignore_errors=True)
         raise ModelDownloadError(
-            f"{name} modeli indirilemedi: {error[0]}. Internet baglantisini kontrol edin."
+            f"{name} modeli indirilemedi: {error[0]}. İnternet bağlantısını kontrol edin."
         ) from error[0]
 
     if not is_downloaded(name):
         shutil.rmtree(target, ignore_errors=True)
         raise ModelDownloadError(
-            f"{name} modeli eksik indi. Diskte yer olduguna emin olup tekrar deneyin."
+            f"{name} modeli eksik indi. Diskte yer olduğuna emin olup tekrar deneyin."
         )
 
     if progress:
-        progress(1.0, f"{name} modeli hazir")
+        progress(1.0, f"{name} modeli hazır")
     return target
 
 
