@@ -35,15 +35,15 @@ from pathlib import Path
 
 from . import __version__
 
-# Yayin deposu: "kullanici/depo" bicimi, ornegin "ornek/palaskript".
+# Yayin deposu: "kullanici/depo" bicimi.
 #
-# BURAYI DOLDURUN. Bos birakilirsa guncelleme denetimi hic calismiyor; bu
-# bilincli: yanlis bir depo adiyla sessizce baska birinin yayinlarini
-# indirmeye calismak, hic denetlememekten kotu.
+# Catallayan biri burayi kendi deposuyla degistiriyor; kullanici ayarlardan da
+# verebiliyor, boylece uygulamayi yeniden derlemeye gerek kalmiyor.
 #
-# Kullanici ayarlardan da degistirebiliyor, boylece catallayan kendi deposunu
-# uygulamayi yeniden derlemeden verebiliyor.
-DEFAULT_REPO = ""
+# Bos birakilirsa guncelleme denetimi hic calismiyor. Bu bilincli: yanlis bir
+# depo adiyla sessizce baska birinin yayinlarini indirmeye calismak, hic
+# denetlememekten kotu.
+DEFAULT_REPO = "palaangelino/palaskript"
 
 _API = "https://api.github.com/repos/{repo}/releases/latest"
 _TIMEOUT = 20

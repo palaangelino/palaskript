@@ -130,7 +130,7 @@ class FirstRunDialog(QDialog):
         )
 
         layout.addSpacing(4)
-        credit = _muted("© Selçuk Abi'nin fikridir, kopyalanamaz.")
+        credit = _muted("2026 © Selçuk Ağabey'in fikridir, kopyalanamaz.")
         credit.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(credit)
 
