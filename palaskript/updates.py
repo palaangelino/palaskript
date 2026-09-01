@@ -81,14 +81,19 @@ def parse_version(text: str) -> tuple[int, int, int] | None:
     return tuple(int(g) for g in match.groups())  # type: ignore[return-value]
 
 
-def is_newer(candidate: str, current: str = __version__) -> bool:
+def is_newer(candidate: str, current: str | None = None) -> bool:
     """candidate, current'tan yeni mi.
+
+    current verilmezse calisan surum kullaniliyor. Varsayilan degeri imzada
+    __version__ olarak yazmiyoruz: varsayilanlar TANIM aninda baglanir ve
+    fonksiyon o degerle donup kalir; testlerde ve tanilamada baska bir surumu
+    taklit etmek imkansiz hale gelir.
 
     Ayristirilamayan surum "yeni degil" sayiliyor: bilinmeyen bir etiket
     yuzunden kullaniciyi guncellemeye cagirmak yanlis olur.
     """
     new = parse_version(candidate)
-    old = parse_version(current)
+    old = parse_version(__version__ if current is None else current)
     if new is None or old is None:
         return False
     return new > old

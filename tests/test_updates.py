@@ -58,6 +58,19 @@ class TestIsNewer:
         assert not updates.is_newer("bilinmiyor", "1.0.0")
         assert not updates.is_newer("1.0.1", "bilinmiyor")
 
+    def test_defaults_to_the_running_version(self):
+        """current verilmezse calisan surum kullanilmali."""
+        assert not updates.is_newer(updates.__version__)
+        assert updates.is_newer("999.0.0")
+
+    def test_running_version_is_read_at_call_time(self, monkeypatch):
+        """Varsayilan imzada baglanmis olsaydi bu taklit calismazdi ve
+        fonksiyon test edilemez olurdu."""
+        monkeypatch.setattr(updates, "__version__", "0.9.0")
+        assert updates.is_newer("1.0.0")
+        monkeypatch.setattr(updates, "__version__", "2.0.0")
+        assert not updates.is_newer("1.0.0")
+
 
 def _release_payload(tag: str = "v1.2.0", *, with_installer: bool = True) -> dict:
     assets = []
