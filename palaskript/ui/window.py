@@ -23,7 +23,6 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMenu,
     QMessageBox,
-    QProgressBar,
     QProgressDialog,
     QPushButton,
     QSystemTrayIcon,
@@ -45,40 +44,13 @@ from ..resources import choose_profile, detect
 from ..source import resolver
 from . import theme
 from .add_dialog import AddDialog
+from .progress import ProgressCell
 from .settings_dialog import SettingsDialog
 
 _REFRESH_MS = 500
 
 _COLUMNS = ["Başlık", "Süre", "Durum", "İlerleme", "Kalan"]
 _COL_TITLE, _COL_DURATION, _COL_STATUS, _COL_PROGRESS, _COL_ETA = range(5)
-
-
-def _progress_cell() -> QWidget:
-    """Ilerleme hucresi: ince cubuk + ayri yuzde etiketi.
-
-    Yuzdeyi cubugun ICINE yazdirmak okunmaz sonuc veriyordu: metin kismen
-    turuncu dolgunun, kismen krem zeminin uzerine dusuyor ve iki durumda da
-    dogru kontrasti veren tek bir renk yok.
-    """
-    container = QWidget()
-    row = QHBoxLayout(container)
-    row.setContentsMargins(4, 0, 4, 0)
-    row.setSpacing(8)
-
-    bar = QProgressBar()
-    bar.setRange(0, 100)
-    bar.setTextVisible(False)
-    row.addWidget(bar, 1)
-
-    percent = QLabel("0%")
-    percent.setMinimumWidth(34)
-    percent.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-    percent.setProperty("muted", True)
-    row.addWidget(percent)
-
-    container.bar = bar
-    container.percent = percent
-    return container
 
 
 class UpdateChecker(QObject):
@@ -433,7 +405,7 @@ class MainWindow(QMainWindow):
             for col in (_COL_TITLE, _COL_DURATION, _COL_STATUS, _COL_ETA):
                 if self.table.item(row, col) is None:
                     self.table.setItem(row, col, QTableWidgetItem())
-            self.table.setCellWidget(row, _COL_PROGRESS, _progress_cell())
+            self.table.setCellWidget(row, _COL_PROGRESS, ProgressCell())
             self._update_row(row, job)
 
     def _update_row(self, row: int, job: Job) -> None:
@@ -458,10 +430,9 @@ class MainWindow(QMainWindow):
         status_item.setToolTip(job.message or job.error or "")
 
         cell = self.table.cellWidget(row, _COL_PROGRESS)
-        if cell is not None:
-            percent = int(job.progress * 100)
-            cell.bar.setValue(percent)
-            cell.percent.setText(f"{percent}%")
+        if isinstance(cell, ProgressCell):
+            # Isik bandi yalnizca gercekten islenen satirda donuyor.
+            cell.update_state(job.progress * 100, active=job.status == "running")
 
         eta = "-"
         if job.status == "running" and job.eta_seconds and job.eta_seconds > 0:
