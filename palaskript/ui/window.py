@@ -247,7 +247,10 @@ class MainWindow(QMainWindow):
 
         add = QAction("Ekle", self)
         add.setShortcut("Ctrl+N")
-        add.triggered.connect(self.open_add_dialog)
+        # QAction.triggered 'checked' degerini (bool) yolluyor ve
+        # open_add_dialog opsiyonel bir parametre aldigi icin Qt onu
+        # metin sanip veriyordu. Lambda ile sinyalin argumanini yutuyoruz.
+        add.triggered.connect(lambda: self.open_add_dialog())
         bar.addAction(add)
 
         bar.addSeparator()
@@ -426,7 +429,12 @@ class MainWindow(QMainWindow):
         )
 
         status_item = self.table.item(row, _COL_STATUS)
-        status_item.setText(job.status_label)
+        # Calisan iste ayrintili mesaji gosteriyoruz. Sabit asama etiketi
+        # ("Model hazirlaniyor") 7 dakikalik bir model indirmesi boyunca hic
+        # degismiyor ve uygulama donmus gibi gorunuyor; mesaj ise kac GB
+        # inildigini soyluyor.
+        detail = job.message if job.status == "running" and job.message else None
+        status_item.setText(detail or job.status_label)
         status_item.setToolTip(job.message or job.error or "")
 
         cell = self.table.cellWidget(row, _COL_PROGRESS)

@@ -73,6 +73,11 @@ class JobResult:
 # Pencere ici canli ilerleme bildirimleri arasindaki en kisa sure.
 _LIVE_PROGRESS_SECONDS = 2.0
 
+# Kalan sure tahmini icin gereken en az olcum: bu kadar sure gecmeden ve
+# bu kadar ses yazilmadan tahmin gosterilmiyor.
+_ETA_MIN_SECONDS = 25.0
+_ETA_MIN_AUDIO_SECONDS = 45.0
+
 # Asama agirliklari: kullaniciya tek bir yuzde gostermek icin.
 _WEIGHTS = {
     "probe": (0.00, 0.02),
@@ -335,13 +340,33 @@ def _transcribe(
                 duration=duration,
             )
 
+            # ETA olcumunun baslangic noktasi. Dongunun basi DEGIL, ILK
+            # segmentin geldigi an: motor ilk segmenti vermeden once tum
+            # pencereye VAD uyguluyor ve ilk yigini kodluyor. Bu tek seferlik
+            # is ortalamaya karistirilirsa hiz olduğundan cok dusuk gorunuyor
+            # ve 8 dakikalik bir video icin "31 dakika kaldi" yaziyor.
+            anchor: dict[str, float] = {}
+
             def announce(position: float) -> None:
                 """Ilerlemeyi ve kalan sureyi bildir."""
                 live = min(position, duration) if duration else position
-                elapsed = time.monotonic() - wall_start
-                covered = max(1e-6, live - start_at)
-                rate = covered / elapsed if elapsed > 0 else 0.0
-                eta = ((duration - live) / rate) if rate > 0 and duration else None
+                now = time.monotonic()
+
+                if not anchor and live > start_at:
+                    anchor["time"] = now
+                    anchor["position"] = live
+
+                eta = None
+                if anchor:
+                    span = now - anchor["time"]
+                    covered = live - anchor["position"]
+                    # Yeterli ornek toplanana kadar tahmin gostermiyoruz.
+                    # Yanlis bir sure, sure gostermemekten kotu.
+                    if span >= _ETA_MIN_SECONDS and covered >= _ETA_MIN_AUDIO_SECONDS:
+                        rate = covered / span
+                        if rate > 0 and duration:
+                            eta = (duration - live) / rate
+
                 report(
                     "transcribe",
                     live / duration if duration else 0.0,

@@ -18,11 +18,17 @@ ROOT = Path(SPECPATH).parent
 
 # Uygulamanin ihtiyac duydugu varliklar. assets/installer yalnizca kurulum
 # sihirbazi icin, uygulamanin icinde ise yaramiyor; disarida birakiliyor.
+# assets/ ICINDEKI HER SEY paketleniyor, tek tek listelenmiyor. Onceki surumde
+# liste elle tutuluyordu ve kalp gorselleri unutulmustu: uygulama calisti ama
+# altbilgideki kalp gorunmedi. Yeni bir varlik eklenince kimsenin listeyi
+# guncellemeyi hatirlamasi gerekmemeli.
+#
+# assets/installer disarida: yalnizca kurulum sihirbazi kullaniyor, uygulamanin
+# icinde ise yaramiyor ve ~2 MB yer kapliyor.
 datas = [
-    (str(ROOT / "assets" / "fonts"), "assets/fonts"),
-    (str(ROOT / "assets" / "icon.ico"), "assets"),
-    (str(ROOT / "assets" / "check-light.png"), "assets"),
-    (str(ROOT / "assets" / "check-muted.png"), "assets"),
+    (str(path), f"assets/{path.parent.relative_to(ROOT / 'assets')}".rstrip("/."))
+    for path in (ROOT / "assets").rglob("*")
+    if path.is_file() and "installer" not in path.relative_to(ROOT / "assets").parts
 ]
 binaries = []
 hiddenimports = collect_submodules("palaskript")

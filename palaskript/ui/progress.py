@@ -97,6 +97,13 @@ class ShimmerBar(QWidget):
         painter.fillPath(track, QColor(theme.SURFACE_SUNKEN))
         painter.strokePath(track, QColor(theme.BORDER))
 
+        # Band TUM cubuk boyunca geciyor, yalnizca dolgunun uzerinde degil.
+        # Ilerleme %15'teyken dolgu birkac piksel genisliginde kaliyor ve
+        # bandi oraya hapsetmek onu gorunmez yapiyordu; oysa kullanicinin
+        # "calisiyor mu" sorusuna cevap veren tam da bu.
+        if self._active:
+            self._sweep(painter, rect, track, QColor(theme.ACCENT), 60)
+
         if self._value <= 0:
             return
 
@@ -109,25 +116,33 @@ class ShimmerBar(QWidget):
         fill.addRoundedRect(fill_rect, BAR_RADIUS, BAR_RADIUS)
         painter.fillPath(fill, QColor(theme.ACCENT))
 
-        if not self._active:
-            return
+        if self._active:
+            # Dolgunun uzerinde daha parlak, ayni evrede ilerleyen ikinci band.
+            self._sweep(painter, rect, fill, QColor(255, 255, 255), 120)
 
-        # Isik bandi dolgunun disina tasmasin diye dolguya kirpiliyor.
+    def _sweep(self, painter, area: QRectF, clip: QPainterPath, colour: QColor, alpha: int) -> None:  # noqa: ANN001
+        """Verilen sekle kirpilmis, soldan saga gecen isik bandi.
+
+        Bandin konumu her zaman TUM cubuga gore hesaplaniyor; boylece
+        dolgudaki ve zemindeki bandlar ayni hizada hareket ediyor.
+        """
         painter.save()
-        painter.setClipPath(fill)
+        painter.setClipPath(clip)
 
-        band = fill_rect.width() * SHIMMER_WIDTH
+        band = area.width() * SHIMMER_WIDTH
         # Band tamamen disaridan girip tamamen disariya ciksin.
-        start = -band + self._phase * (fill_rect.width() + band)
+        start = area.left() - band + self._phase * (area.width() + band)
 
         gradient = QLinearGradient(start, 0.0, start + band, 0.0)
-        highlight = QColor(255, 255, 255, 110)
-        transparent = QColor(255, 255, 255, 0)
-        gradient.setColorAt(0.0, transparent)
-        gradient.setColorAt(0.5, highlight)
-        gradient.setColorAt(1.0, transparent)
+        bright = QColor(colour)
+        bright.setAlpha(alpha)
+        clear = QColor(colour)
+        clear.setAlpha(0)
+        gradient.setColorAt(0.0, clear)
+        gradient.setColorAt(0.5, bright)
+        gradient.setColorAt(1.0, clear)
 
-        painter.fillRect(fill_rect, gradient)
+        painter.fillRect(area, gradient)
         painter.restore()
 
 

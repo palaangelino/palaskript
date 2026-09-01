@@ -52,9 +52,11 @@ class TestMainWindow:
             # Bekleyen karar yokken uyari cubuklari gizli.
             assert not window.decision_bar.isVisible()
         finally:
+            window._timer.stop()
             window.orchestrator.stop(wait=True, timeout=5.0)
             window.db.close()
-            window.close()
+            # close() CAGRILMIYOR: calisan is varsa onay modali aciliyor ve
+            # test orada asili kaliyor.
             window.deleteLater()
 
     def test_refresh_renders_queued_jobs(self, app, isolated_paths):
@@ -62,7 +64,10 @@ class TestMainWindow:
 
         window = MainWindow()
         try:
-            window.orchestrator.pause()
+            # Duraklatmak degil DURDURMAK gerekiyor: duraklatma
+            # __init__ icinde baslatilan is parcacigiyla yarisiyor ve
+            # eklenen is aga cikabiliyor.
+            window.orchestrator.stop(wait=True, timeout=5.0)
             window.db.add(
                 SourceInfo(
                     kind="youtube",
@@ -80,9 +85,11 @@ class TestMainWindow:
             assert window.table.item(0, 1).text() == "01:00:00"
             assert window.table.item(0, 2).text() == "Bekliyor"
         finally:
+            window._timer.stop()
             window.orchestrator.stop(wait=True, timeout=5.0)
             window.db.close()
-            window.close()
+            # close() CAGRILMIYOR: calisan is varsa onay modali aciliyor ve
+            # test orada asili kaliyor.
             window.deleteLater()
 
     def test_decision_banner_appears_for_awaiting_jobs(self, app, isolated_paths):
@@ -90,7 +97,10 @@ class TestMainWindow:
 
         window = MainWindow()
         try:
-            window.orchestrator.pause()
+            # Duraklatmak degil DURDURMAK gerekiyor: duraklatma
+            # __init__ icinde baslatilan is parcacigiyla yarisiyor ve
+            # eklenen is aga cikabiliyor.
+            window.orchestrator.stop(wait=True, timeout=5.0)
             job = window.db.add(
                 SourceInfo(
                     kind="youtube",
@@ -112,9 +122,11 @@ class TestMainWindow:
             assert window.db.get(job.id).use_subtitles is True
             assert window.db.get(job.id).status == "pending"
         finally:
+            window._timer.stop()
             window.orchestrator.stop(wait=True, timeout=5.0)
             window.db.close()
-            window.close()
+            # close() CAGRILMIYOR: calisan is varsa onay modali aciliyor ve
+            # test orada asili kaliyor.
             window.deleteLater()
 
 
