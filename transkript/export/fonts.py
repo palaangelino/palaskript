@@ -4,10 +4,9 @@ ReportLab'in yerlesik fontlari (Helvetica, Times) Turkce karakterleri
 tasimiyor: g-breve, i-dotless, s-cedilla PDF'te ya bos kutu ya da yanlis harf
 cikiyor. Bu yuzden mutlaka bir TrueType font gomulmeli.
 
-Once paketle gelen DejaVuSans araniyor, yoksa Windows sistem fontlarina
-duseluyor. Sistem fontunu paketlemiyoruz, calisma aninda yolundan okuyoruz:
-lisans acisindan temiz ve kurulum dosyasini sisirmiyor. Windows'ta bu fontlarin
-hepsi her zaman var, dolayisiyla pratikte yedek zinciri hep tutuyor.
+Paketle gelen IBM Plex Sans (OFL) kullaniliyor: uygulama arayuzuyle belge ayni
+yazi tipini paylassin ve cikti makineden makineye degismesin. Font bir sekilde
+bulunamazsa Windows sistem fontlarina duseluyor, boylece belge yine de uretiliyor.
 """
 
 from __future__ import annotations
@@ -48,8 +47,14 @@ def _candidates() -> list[tuple[str, Path, Path]]:
     bundled = paths.assets_dir() / "fonts"
     win = _windows_fonts_dir()
     return [
-        ("DejaVu Sans", bundled / "DejaVuSans.ttf", bundled / "DejaVuSans-Bold.ttf"),
-        # Calibri govde metni icin tasarlandi, 90 sayfalik okumada Segoe UI'dan rahat.
+        # Paketle gelen font once: belge ile uygulama ayni yazi tipini kullansin
+        # ve cikti makineden makineye degismesin.
+        (
+            "IBM Plex Sans",
+            bundled / "IBMPlexSans-Regular.ttf",
+            bundled / "IBMPlexSans-SemiBold.ttf",
+        ),
+        # Yedekler: paket bozulursa veya font silinirse belge yine uretilsin.
         ("Calibri", win / "calibri.ttf", win / "calibrib.ttf"),
         ("Segoe UI", win / "segoeui.ttf", win / "segoeuib.ttf"),
         ("Arial", win / "arial.ttf", win / "arialbd.ttf"),

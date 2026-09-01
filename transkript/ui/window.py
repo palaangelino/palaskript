@@ -42,6 +42,7 @@ from ..jobqueue.orchestrator import Orchestrator, cleanup_orphan_cache
 from ..power import keep_awake
 from ..resources import choose_profile, detect
 from ..source import resolver
+from . import theme
 from .add_dialog import AddDialog
 from .settings_dialog import SettingsDialog
 
@@ -49,6 +50,34 @@ _REFRESH_MS = 500
 
 _COLUMNS = ["Başlık", "Süre", "Durum", "İlerleme", "Kalan"]
 _COL_TITLE, _COL_DURATION, _COL_STATUS, _COL_PROGRESS, _COL_ETA = range(5)
+
+
+def _progress_cell() -> QWidget:
+    """Ilerleme hucresi: ince cubuk + ayri yuzde etiketi.
+
+    Yuzdeyi cubugun ICINE yazdirmak okunmaz sonuc veriyordu: metin kismen
+    turuncu dolgunun, kismen krem zeminin uzerine dusuyor ve iki durumda da
+    dogru kontrasti veren tek bir renk yok.
+    """
+    container = QWidget()
+    row = QHBoxLayout(container)
+    row.setContentsMargins(4, 0, 4, 0)
+    row.setSpacing(8)
+
+    bar = QProgressBar()
+    bar.setRange(0, 100)
+    bar.setTextVisible(False)
+    row.addWidget(bar, 1)
+
+    percent = QLabel("0%")
+    percent.setMinimumWidth(34)
+    percent.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+    percent.setProperty("muted", True)
+    row.addWidget(percent)
+
+    container.bar = bar
+    container.percent = percent
+    return container
 
 
 class ResolveWorker(QObject):
@@ -120,7 +149,7 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(10, 8, 10, 8)
         layout.setSpacing(8)
 
-        self.clipboard_bar = self._banner("#e8f0fe", "#1a56b8", "#123a7a")
+        self.clipboard_bar = self._banner("neutral")
         self.clipboard_label = QLabel()
         self.clipboard_add = QPushButton("Kuyruğa ekle")
         self.clipboard_dismiss = QPushButton("Yoksay")
@@ -134,9 +163,10 @@ class MainWindow(QMainWindow):
         self.clipboard_bar.hide()
         layout.addWidget(self.clipboard_bar)
 
-        self.decision_bar = self._banner("#fff4e5", "#8a5300", "#6b4000")
+        self.decision_bar = self._banner("accent")
         self.decision_label = QLabel()
         self.decision_subs = QPushButton("Hazır altyazıyı kullan")
+        self.decision_subs.setProperty("primary", True)
         self.decision_whisper = QPushButton("Whisper ile yaz")
         self.decision_subs.clicked.connect(lambda: self._decide_all(True))
         self.decision_whisper.clicked.connect(lambda: self._decide_all(False))
@@ -159,6 +189,9 @@ class MainWindow(QMainWindow):
         self.table.doubleClicked.connect(lambda: self._open_output("pdf"))
 
         header = self.table.horizontalHeader()
+        # Basliklarin hizasi stil sayfasindan gelmiyor, kodla veriliyor.
+        header.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        header.setHighlightSections(False)
         header.setSectionResizeMode(_COL_TITLE, QHeaderView.ResizeMode.Stretch)
         for col in (_COL_DURATION, _COL_STATUS, _COL_PROGRESS, _COL_ETA):
             header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
@@ -171,25 +204,10 @@ class MainWindow(QMainWindow):
         self.statusBar().addPermanentWidget(self.profile_label)
         self._update_profile_label()
 
-    def _banner(self, background: str, border: str, foreground: str) -> QWidget:
-        """Bilgilendirme cubugu.
-
-        Zemin ve metin rengi BIRLIKTE sabitleniyor. Yalnizca zemini
-        sabitlemek koyu temada cubugu okunmaz yapiyor: tema kendi acik gri
-        metnini acik zemine yaziyor.
-        """
+    def _banner(self, tone: str) -> QWidget:
+        """Bilgilendirme cubugu. Renkler paletten geliyor (bkz. theme.py)."""
         bar = QWidget()
-        bar.setStyleSheet(
-            f"QWidget {{ background-color: {background};"
-            f" border: 1px solid {border}; border-radius: 4px; }}"
-            f" QLabel {{ color: {foreground}; border: none; background: transparent; }}"
-            # Butonlar da elle boyanmali: aksi halde acik zemini miras alip
-            # temanin acik gri metnini kullaniyorlar ve yazi kayboluyor.
-            f" QPushButton {{ color: {foreground}; background-color: rgba(255,255,255,0.75);"
-            f" border: 1px solid {border}; border-radius: 3px; padding: 4px 10px; }}"
-            f" QPushButton:hover {{ background-color: rgba(255,255,255,1.0); }}"
-            f" QPushButton:pressed {{ background-color: rgba(0,0,0,0.06); }}"
-        )
+        bar.setStyleSheet(theme.banner_style(tone=tone))
         return bar
 
     def _fill_banner(self, bar: QWidget, label: QLabel, buttons: list[QPushButton]) -> None:
@@ -361,11 +379,7 @@ class MainWindow(QMainWindow):
             for col in (_COL_TITLE, _COL_DURATION, _COL_STATUS, _COL_ETA):
                 if self.table.item(row, col) is None:
                     self.table.setItem(row, col, QTableWidgetItem())
-            bar = QProgressBar()
-            bar.setRange(0, 100)
-            bar.setTextVisible(True)
-            bar.setFormat("%p%")
-            self.table.setCellWidget(row, _COL_PROGRESS, bar)
+            self.table.setCellWidget(row, _COL_PROGRESS, _progress_cell())
             self._update_row(row, job)
 
     def _update_row(self, row: int, job: Job) -> None:
@@ -389,15 +403,17 @@ class MainWindow(QMainWindow):
         status_item.setText(job.status_label)
         status_item.setToolTip(job.message or job.error or "")
 
-        bar = self.table.cellWidget(row, _COL_PROGRESS)
-        if isinstance(bar, QProgressBar):
-            bar.setValue(int(job.progress * 100))
+        cell = self.table.cellWidget(row, _COL_PROGRESS)
+        if cell is not None:
+            percent = int(job.progress * 100)
+            cell.bar.setValue(percent)
+            cell.percent.setText(f"{percent}%")
 
         eta = "-"
         if job.status == "running" and job.eta_seconds and job.eta_seconds > 0:
             eta = format_timestamp(job.eta_seconds, always_hours=True)
         elif job.status == "done":
-            eta = "Hazir"
+            eta = "Hazır"
         self.table.item(row, _COL_ETA).setText(eta)
 
     def _selected_job(self) -> Job | None:

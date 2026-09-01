@@ -16,7 +16,14 @@ from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 ROOT = Path(SPECPATH).parent
 
-datas = [(str(ROOT / "assets"), "assets")]
+# Uygulamanin ihtiyac duydugu varliklar. assets/installer yalnizca kurulum
+# sihirbazi icin, uygulamanin icinde ise yaramiyor; disarida birakiliyor.
+datas = [
+    (str(ROOT / "assets" / "fonts"), "assets/fonts"),
+    (str(ROOT / "assets" / "icon.ico"), "assets"),
+    (str(ROOT / "assets" / "check-light.png"), "assets"),
+    (str(ROOT / "assets" / "check-muted.png"), "assets"),
+]
 binaries = []
 hiddenimports = collect_submodules("transkript")
 

@@ -62,7 +62,9 @@ class AddDialog(QDialog):
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
-        buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Kuyruğa ekle")
+        ok_button = buttons.button(QDialogButtonBox.StandardButton.Ok)
+        ok_button.setText("Kuyruğa ekle")
+        ok_button.setProperty("primary", True)
         buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("Vazgeç")
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)

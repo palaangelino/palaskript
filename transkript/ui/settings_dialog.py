@@ -10,7 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QPalette, QStandardItemModel
+from PySide6.QtGui import QStandardItemModel
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -71,18 +71,12 @@ _SUB_POLICIES = [
 def _hint(text: str) -> QLabel:
     """Aciklama metni.
 
-    Rengi sabit vermiyoruz: sabit acik gri koyu temada sonuk, sabit koyu gri
-    acik temada sonuk kaliyor. Temanin kendi pasif metin rengi ikisinde de
-    dogru kontrasti veriyor.
+    Rengi burada sabitlemiyoruz: paletteki "muted" rengi stil sayfasindan
+    geliyor, boylece tum aciklama metinleri tek yerden yonetiliyor.
     """
     label = QLabel(text)
     label.setWordWrap(True)
-    palette = label.palette()
-    palette.setColor(
-        QPalette.ColorRole.WindowText,
-        palette.color(QPalette.ColorGroup.Disabled, QPalette.ColorRole.WindowText),
-    )
-    label.setPalette(palette)
+    label.setProperty("muted", True)
     return label
 
 
@@ -114,7 +108,9 @@ class SettingsDialog(QDialog):
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
-        buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Kaydet")
+        save_button = buttons.button(QDialogButtonBox.StandardButton.Ok)
+        save_button.setText("Kaydet")
+        save_button.setProperty("primary", True)
         buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("Vazgeç")
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
@@ -185,7 +181,7 @@ class SettingsDialog(QDialog):
 
         self.model_warning = QLabel()
         self.model_warning.setWordWrap(True)
-        self.model_warning.setStyleSheet("color: #e5484d;")
+        self.model_warning.setProperty("warning", True)
         form.addRow("", self.model_warning)
 
         self.language_combo = _combo(_LANGUAGES, self._settings.language)

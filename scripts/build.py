@@ -84,8 +84,8 @@ def main() -> int:
 
     icon = ROOT / "assets" / "icon.ico"
     if not icon.exists():
-        print("Ikon yok, uretiliyor...")
-        run([python, str(ROOT / "scripts" / "make_icon.py")])
+        print("Marka gorselleri yok, uretiliyor...")
+        run([python, str(ROOT / "scripts" / "make_brand.py")])
 
     started = time.monotonic()
     run(

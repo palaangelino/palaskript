@@ -62,6 +62,7 @@ def main() -> int:
     from PySide6.QtGui import QIcon
     from PySide6.QtWidgets import QApplication
 
+    from .ui import theme
     from .ui.first_run import maybe_run
     from .ui.window import MainWindow
 
@@ -71,6 +72,10 @@ def main() -> int:
     app.setApplicationVersion(__version__)
     app.setOrganizationName(APP_NAME)
     app.setQuitOnLastWindowClosed(True)
+
+    # Sistem temasi takip edilmiyor: kendi paletimiz ve fontlarimiz
+    # kullaniliyor (gerekcesi ui/theme.py icinde).
+    theme.apply(app)
 
     icon_path = paths.assets_dir() / "icon.ico"
     if icon_path.exists():

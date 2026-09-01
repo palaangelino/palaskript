@@ -139,6 +139,45 @@ yine calisir. Kurmak icin: `winget install JRSoftware.InnoSetup`
 
 ---
 
+## Gorunum
+
+Uygulama sistem temasini TAKIP ETMIYOR, kendi paletini ve yazi tipini
+kullaniyor. Iki gerekce:
+
+- **Tutarlilik.** Windows'un acik ve koyu temasi ayni arayuzu iki farkli sekilde
+  gosteriyor; ozel renkler (uyari cubuklari, ilerleme, secim) her ikisinde
+  birden dogru gorunecek sekilde ayarlanamiyor. Ilk surumde koyu temada uyari
+  cubugunun yazisi tamamen kaybolmustu.
+- **Karakter.** Krem zemin, sicak gri kenarliklar ve tek turuncu vurgu, sistem
+  temasinin notrlugu yerine belgeye bakan bir arac hissi veriyor.
+
+| Rol | Renk |
+|---|---|
+| Zemin | `#FAF6EF` acik krem |
+| Yuzey (tablo, girdi) | `#FFFDF9` |
+| Kenarlik | `#DCD4C4` / `#C3B9A4` sicak gri |
+| Vurgu | `#C86A28` acik turuncu |
+| Yazi | `#1B1713` siyah |
+
+Turuncu **sadece dort yerde** kullaniliyor: birincil eylem, ilerleme dolgusu,
+secili satir ve odak halkasi. Her yere serpistirilirse vurgu olmaktan cikiyor.
+
+Yazi tipi **IBM Plex Sans** (OFL), uc agirlikta paketle geliyor. Sistem fontuna
+guvenmiyoruz: makineden makineye degisiyor ve tasarim onunla birlikte degisiyor.
+**Ayni font PDF'te de kullaniliyor**, boylece belge ile uygulama ayni dili
+konusuyor ve cikti makineden makineye degismiyor.
+
+Arayuzde emoji yok.
+
+Kurulum sihirbazi da ayni paletten: gorseller (`assets/installer/*.bmp`),
+uygulama ikonu ve onay kutusu tikleri tek bir betikten uretiliyor:
+
+```bash
+.venv\Scripts\python scripts\make_brand.py
+```
+
+---
+
 ## Mimari
 
 ```

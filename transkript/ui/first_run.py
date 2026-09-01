@@ -14,7 +14,6 @@ Gercek bellek olcumu ilk isten sonra kendiliginden geliyor (bkz. calibration.py)
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QPalette
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -36,12 +35,7 @@ from ..resources import MODEL_CATALOG, HardwareInfo, available_models, choose_pr
 def _muted(text: str) -> QLabel:
     label = QLabel(text)
     label.setWordWrap(True)
-    palette = label.palette()
-    palette.setColor(
-        QPalette.ColorRole.WindowText,
-        palette.color(QPalette.ColorGroup.Disabled, QPalette.ColorRole.WindowText),
-    )
-    label.setPalette(palette)
+    label.setProperty("muted", True)
     return label
 
 
@@ -139,6 +133,7 @@ class FirstRunDialog(QDialog):
         row.addStretch(1)
         self.start_button = QPushButton("Başla")
         self.start_button.setDefault(True)
+        self.start_button.setProperty("primary", True)
         self.start_button.clicked.connect(self._accept)
         row.addWidget(self.start_button)
         skip = QPushButton("Şimdilik atla")
