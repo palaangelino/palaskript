@@ -34,8 +34,41 @@ Link yapistir, kuyruga at, PDF al.
 `dist/Palaskript-Setup-1.0.0.exe` dosyasini calistirin (96 MB, kuruldugunda
 diskte ~350 MB). Yonetici hakki istemiyor, kullanici klasorune kuruluyor.
 
-Imzasiz oldugu icin Windows SmartScreen uyarisi cikar:
-**Daha fazla bilgi > Yine de calistir**.
+### Windows uyarilari
+
+Dosya imzasiz oldugu icin **iki ayri uyari** cikiyor. Ikisi de dosyada bir
+sorun oldugunu soylemiyor; **itibar** uyarisi bunlar.
+
+**1. Indirirken** (Chrome/Edge):
+
+> Palaskript-Setup-1.0.0.exe yaygin olarak indirilen bir dosya degil.
+
+Tarayicinin Indirilenler listesinde dosyanin yanindaki **uc noktaya** tiklayin,
+**Sakla** > **Yine de sakla** deyin.
+
+**2. Calistirirken** (SmartScreen):
+
+> Windows bilgisayarinizi korudu
+
+**Ek bilgi** > **Yine de calistir**.
+
+#### Neden cikiyor
+
+Microsoft SmartScreen, imzalanmamis bir programi **kac kez indirildigine** gore
+degerlendiriyor. Yeni yayinlanmis bir dosyanin indirme sayisi sifir oldugu icin
+"bunu tanimiyorum" diyor. Virus taramasi degil, itibar sorgusu.
+
+Kod imzalama sertifikasi alinirsa bu uyari kalkar (bkz. asagidaki not).
+
+#### Dosyanin dogru indigini kontrol etmek
+
+Her yayinda kurulum dosyasinin yaninda bir `.sha256` dosyasi var. PowerShell'de:
+
+```powershell
+Get-FileHash .\Palaskript-Setup-1.0.0.exe -Algorithm SHA256
+```
+
+Cikan deger `.sha256` dosyasindakiyle ayni olmali.
 
 Ilk baslatmada dil modeli iniyor (varsayilan `large-v3-turbo`, ~1.6 GB).
 Model `%LOCALAPPDATA%\Palaskript\models` altinda kaliyor, bir kez iniyor.
