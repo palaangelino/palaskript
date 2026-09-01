@@ -54,6 +54,13 @@ class Settings:
     use_chapters: bool = True
     auto_chapter_minutes: int = 15
 
+    # Acilista GitHub'da yeni surum var mi diye bak. Kurulum ASLA kendiliginden
+    # yapilmiyor, yalnizca bir cubuk gosteriliyor.
+    check_updates: bool = True
+    # Bos ise updates.DEFAULT_REPO kullaniliyor. Catallayanlar kendi deposunu
+    # uygulamayi yeniden derlemeden buradan verebiliyor.
+    update_repo: str = ""
+
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 

@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QMenu,
     QMessageBox,
     QProgressBar,
+    QProgressDialog,
     QPushButton,
     QSystemTrayIcon,
     QTableWidget,
@@ -33,7 +34,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .. import __version__, config, paths
+from .. import __version__, config, paths, updates
 from ..chapters import format_timestamp
 from ..config import Settings
 from ..datatypes import SourceInfo
@@ -80,6 +81,31 @@ def _progress_cell() -> QWidget:
     return container
 
 
+class UpdateChecker(QObject):
+    """GitHub'da yeni surum var mi diye arka planda bakar.
+
+    Ag cagrisi acilisi geciktirmemeli; bu yuzden ayri bir is parcaciginda
+    calisiyor ve sonuc gelene kadar arayuz normal sekilde kullanilabiliyor.
+    Hata durumunda sessiz kaliyor: guncelleme denetimi kullanicinin isini
+    engellememeli.
+    """
+
+    found = Signal(object)
+
+    def __init__(self, repo: str) -> None:
+        super().__init__()
+        self._repo = repo
+
+    def run(self) -> None:
+        try:
+            release = updates.check(self._repo)
+        except updates.UpdateError:
+            release = None
+        except Exception:  # noqa: BLE001 - denetim hicbir sekilde uygulamayi dusurmemeli
+            release = None
+        self.found.emit(release)
+
+
 class ResolveWorker(QObject):
     """Girdileri arka planda cozer. Ag cagrilari arayuzu dondurmasin diye."""
 
@@ -120,6 +146,9 @@ class MainWindow(QMainWindow):
         self._resolve_thread: QThread | None = None
         self._resolve_worker: ResolveWorker | None = None
         self._last_clipboard = ""
+        self._update_thread: QThread | None = None
+        self._update_worker: UpdateChecker | None = None
+        self._pending_release = None
 
         self.setWindowTitle(f"Palaskript {__version__}")
         self.resize(1000, 620)
@@ -140,6 +169,8 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(
                 f"{resumed} yarım kalmış iş kaldığı yerden devam edecek.", 8000
             )
+
+        self.start_update_check()
 
     # ------------------------------------------------------------- kurulum
 
@@ -162,6 +193,19 @@ class MainWindow(QMainWindow):
         )
         self.clipboard_bar.hide()
         layout.addWidget(self.clipboard_bar)
+
+        self.update_bar = self._banner("neutral")
+        self.update_label = QLabel()
+        self.update_install = QPushButton("Güncelle")
+        self.update_install.setProperty("primary", True)
+        self.update_later = QPushButton("Sonra")
+        self.update_install.clicked.connect(self._install_update)
+        self.update_later.clicked.connect(self.update_bar.hide)
+        self._fill_banner(
+            self.update_bar, self.update_label, [self.update_install, self.update_later]
+        )
+        self.update_bar.hide()
+        layout.addWidget(self.update_bar)
 
         self.decision_bar = self._banner("accent")
         self.decision_label = QLabel()
@@ -249,6 +293,10 @@ class MainWindow(QMainWindow):
             lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(self.settings.output_dir))
         )
         bar.addAction(open_out)
+
+        update_action = QAction("Güncelleme denetle", self)
+        update_action.triggered.connect(lambda: self.start_update_check(manual=True))
+        bar.addAction(update_action)
 
         settings_action = QAction("Ayarlar", self)
         settings_action.triggered.connect(self.open_settings)
@@ -587,6 +635,125 @@ class MainWindow(QMainWindow):
     def _notify(self, title: str, body: str) -> None:
         if self.tray is not None:
             self.tray.showMessage(title, body, QSystemTrayIcon.MessageIcon.Information, 6000)
+
+    # ---------------------------------------------------------- guncelleme
+
+    def start_update_check(self, *, manual: bool = False) -> None:
+        """Arka planda yeni surum var mi bak."""
+        if self._update_thread is not None:
+            return
+        if not manual and not self.settings.check_updates:
+            return
+        if not manual and not updates.is_frozen():
+            # Kaynaktan calisirken guncelleme onerilmiyor: gelistirici kendi
+            # kopyasini git ile guncelliyor, kurulum dosyasi calistirmak
+            # calisma kopyasini bozar.
+            return
+
+        repo = self.settings.update_repo or updates.DEFAULT_REPO
+        if not repo:
+            if manual:
+                QMessageBox.information(
+                    self,
+                    "Güncelleme deposu yok",
+                    "Ayarlardan GitHub deposunu ('kullanici/depo') girin.",
+                )
+            return
+
+        worker = UpdateChecker(repo)
+        thread = QThread(self)
+        worker.moveToThread(thread)
+        thread.started.connect(worker.run)
+        worker.found.connect(lambda release: self._on_update_found(release, manual))
+        worker.found.connect(thread.quit)
+        thread.finished.connect(self._clear_update_thread)
+        self._update_thread = thread
+        self._update_worker = worker
+        thread.start()
+
+    def _clear_update_thread(self) -> None:
+        if self._update_thread is not None:
+            self._update_thread.deleteLater()
+        self._update_thread = None
+        self._update_worker = None
+
+    def _on_update_found(self, release, manual: bool) -> None:  # noqa: ANN001 - Release | None
+        self._pending_release = release
+        if release is None:
+            if manual:
+                QMessageBox.information(
+                    self, "Güncel", f"En son sürümü kullanıyorsunuz ({__version__})."
+                )
+            return
+
+        self.update_label.setText(
+            f"Yeni sürüm hazır: Palaskript {release.version} "
+            f"(şu an {__version__} kullanıyorsunuz)."
+        )
+        self.update_install.setEnabled(release.can_install)
+        self.update_install.setToolTip(
+            "" if release.can_install else "Bu yayında kurulum dosyası yok."
+        )
+        self.update_bar.show()
+
+    def _install_update(self) -> None:
+        release = self._pending_release
+        if release is None:
+            return
+
+        active = [job for job in self.db.list_jobs() if job.status == "running"]
+        if active:
+            QMessageBox.information(
+                self,
+                "İşlem sürüyor",
+                f"\"{active[0].title}\" işleniyor. Güncelleme için işin bitmesini "
+                "bekleyin veya işi durdurun.",
+            )
+            return
+
+        answer = QMessageBox.question(
+            self,
+            "Güncelle",
+            f"Palaskript {release.version} indirilip kurulacak.\n\n"
+            "Uygulama kapanacak ve kurulum başlayacak. Kuyruğunuz, ayarlarınız ve "
+            "indirilmiş modeller korunur.\n\nDevam edilsin mi?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+
+        dialog = QProgressDialog("Güncelleme indiriliyor...", "Vazgeç", 0, 100, self)
+        dialog.setWindowTitle("Güncelleme")
+        dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
+        dialog.setMinimumDuration(0)
+        dialog.setValue(0)
+
+        def report(fraction: float, message: str) -> None:
+            dialog.setValue(int(fraction * 100))
+            dialog.setLabelText(message)
+            QApplication.processEvents()
+
+        try:
+            installer = updates.download_installer(release, progress=report)
+        except updates.UpdateError as exc:
+            dialog.close()
+            QMessageBox.warning(self, "Güncellenemedi", str(exc))
+            return
+        dialog.close()
+
+        try:
+            updates.launch_installer(installer)
+        except updates.UpdateError as exc:
+            QMessageBox.warning(self, "Güncellenemedi", str(exc))
+            return
+
+        # Kurulum calisan dosyalarin uzerine yazamiyor; hemen kapaniyoruz.
+        self._timer.stop()
+        self.orchestrator.stop(wait=True, timeout=10.0)
+        keep_awake.reset()
+        self.db.close()
+        QApplication.quit()
 
     # -------------------------------------------------------------- ayarlar
 

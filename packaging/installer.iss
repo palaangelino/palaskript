@@ -1,20 +1,25 @@
-; Transkript kurulum betigi (Inno Setup 6)
+; Palaskript kurulum betigi (Inno Setup 6)
 ;
 ; Once PyInstaller calistirilmali:
 ;     pyinstaller packaging/palaskript.spec --noconfirm
 ; Sonra:
 ;     iscc packaging/installer.iss
 ;
-; Cikti: dist/Transkript-Setup-1.0.0.exe
+; Cikti: dist/Palaskript-Setup-<surum>.exe
 ;
 ; Not: imzasiz kurulum dosyasinda Windows SmartScreen uyarisi cikar.
 ; "Daha fazla bilgi" > "Yine de calistir" ile gecilir. Kod imzalama
 ; sertifikasi yillik ucretli ve kisisel kullanim icin gerekli degil.
 
-#define AppName "Transkript"
-#define AppVersion "1.0.0"
+#define AppName "Palaskript"
+; Surum build.py tarafindan /DAppVersion ile veriliyor; tek kaynak
+; palaskript/__init__.py icindeki __version__. Elle derlenirse asagidaki
+; deger kullaniliyor.
+#ifndef AppVersion
+  #define AppVersion "1.0.0"
+#endif
 #define AppExeName "Palaskript.exe"
-#define AppPublisher "Transkript"
+#define AppPublisher "Pala"
 
 [Setup]
 AppId={{8F3A6C21-4B7E-4E2A-9D18-2C5E7A9B4D63}
@@ -53,19 +58,19 @@ Name: "turkish"; MessagesFile: "compiler:Languages\Turkish.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Messages]
-turkish.WelcomeLabel1=Transkript kurulumu
+turkish.WelcomeLabel1=Palaskript kurulumu
 turkish.WelcomeLabel2=YouTube linkinden veya yerel videodan PDF transkript ureten uygulama.%n%nTranskripsiyon tamamen bilgisayarinizda calisir; ses hicbir servise gonderilmez.%n%nDevam etmek icin Ileri'ye tiklayin.
-turkish.FinishedHeadingLabel=Transkript kuruldu
+turkish.FinishedHeadingLabel=Palaskript kuruldu
 turkish.FinishedLabelNoIcons=Uygulamayi ilk actiginizda bilgisayariniz incelenecek ve uygun model secilecek.
 turkish.FinishedLabel=Uygulamayi ilk actiginizda bilgisayariniz incelenecek ve uygun model secilecek.
-english.WelcomeLabel1=Install Transkript
+english.WelcomeLabel1=Install Palaskript
 english.WelcomeLabel2=Turns a YouTube link or a local video into a PDF transcript.%n%nTranscription runs entirely on your computer; audio is never uploaded.%n%nClick Next to continue.
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "..\dist\Transkript\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\dist\Palaskript\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"
@@ -88,8 +93,8 @@ var
 begin
   if CurUninstallStep = usPostUninstall then
   begin
-    AppDataPath := ExpandConstant('{userappdata}\Transkript');
-    LocalPath := ExpandConstant('{localappdata}\Transkript');
+    AppDataPath := ExpandConstant('{userappdata}\Palaskript');
+    LocalPath := ExpandConstant('{localappdata}\Palaskript');
     if DirExists(AppDataPath) or DirExists(LocalPath) then
     begin
       if MsgBox('Ayarlar, is kuyrugu ve indirilmis Whisper modelleri de silinsin mi?' + #13#10 +

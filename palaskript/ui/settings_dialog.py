@@ -31,7 +31,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .. import calibration, catalog, ytdlp_update
+from .. import __version__, calibration, catalog, updates, ytdlp_update
 from ..config import Settings
 from ..resources import (
     MODEL_CATALOG,
@@ -324,6 +324,26 @@ class SettingsDialog(QDialog):
         )
         outer.addWidget(yt_box)
 
+        release_box = QGroupBox("Güncelleme")
+        release_form = QFormLayout(release_box)
+
+        self.check_updates = QCheckBox("Açılışta yeni sürüm var mı diye bak")
+        self.check_updates.setChecked(self._settings.check_updates)
+        release_form.addRow("", self.check_updates)
+
+        self.update_repo = QLineEdit(self._settings.update_repo or updates.DEFAULT_REPO)
+        self.update_repo.setPlaceholderText("kullanici/depo")
+        release_form.addRow("GitHub deposu", self.update_repo)
+        release_form.addRow(
+            "",
+            _hint(
+                f"Şu anki sürüm {__version__}. Yeni sürüm bulunursa üstte bir çubuk "
+                "çıkar; kurulum asla kendiliğinden yapılmaz. Kuyruğunuz, ayarlarınız "
+                "ve indirilmiş modeller güncellemeden etkilenmez."
+            ),
+        )
+        outer.addWidget(release_box)
+
         update_box = QGroupBox("yt-dlp")
         update_layout = QVBoxLayout(update_box)
         self.ytdlp_label = QLabel()
@@ -442,4 +462,6 @@ class SettingsDialog(QDialog):
         s.keep_audio = self.keep_audio_check.isChecked()
         s.manual_subtitle_policy = self.subtitle_combo.currentData()
         s.cookie_browser = self.cookie_combo.currentData()
+        s.check_updates = self.check_updates.isChecked()
+        s.update_repo = self.update_repo.text().strip()
         return s

@@ -12,7 +12,9 @@ PyInstaller birkac dakika suruyor.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -22,6 +24,35 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
 BUILD = ROOT / "build"
+
+
+def app_version() -> str:
+    """Surumun tek kaynagi palaskript/__init__.py.
+
+    Kurulum betigine /DAppVersion ile geciliyor, boylece surum iki yerde
+    tutulup birbirinden ayrilmiyor.
+    """
+    text = (ROOT / "palaskript" / "__init__.py").read_text(encoding="utf-8")
+    match = re.search(r'__version__\s*=\s*"([^"]+)"', text)
+    if not match:
+        raise SystemExit("palaskript/__init__.py icinde __version__ bulunamadi")
+    return match.group(1)
+
+
+def write_checksum(path: Path) -> Path:
+    """Kurulum dosyasinin SHA-256'sini yaz.
+
+    Uygulama guncellemeyi indirdikten sonra bunu dogruluyor; yarim inmis bir
+    kurulum dosyasini calistirmak bozuk kuruluma yol acar.
+    """
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    target = path.with_suffix(path.suffix + ".sha256")
+    # Bicim: sha256sum ile ayni, "<ozet>  <dosya adi>".
+    target.write_text(f"{digest.hexdigest()}  {path.name}\n", encoding="utf-8")
+    return target
 
 # Inno Setup derleyicisinin olasi konumlari. winget kullanici kapsamina
 # kuruyor (LOCALAPPDATA), elle kurulum ise Program Files'a; ikisine de bakiyoruz.
@@ -123,7 +154,8 @@ def main() -> int:
         )
         return 0
 
-    run([str(iscc), str(ROOT / "packaging" / "installer.iss")])
+    version = app_version()
+    run([str(iscc), f"/DAppVersion={version}", str(ROOT / "packaging" / "installer.iss")])
 
     installers = sorted(DIST.glob("Palaskript-Setup-*.exe"))
     if installers:

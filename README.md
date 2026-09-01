@@ -256,6 +256,68 @@ isterseniz dogru format Opus 24 kbps mono (3.5 saat ~38 MB), `audio.export_archi
 
 ---
 
+## Guncelleme
+
+Uygulama guncellemeleri **GitHub Releases** uzerinden aliyor. Ayri bir sunucu
+yok: depo zaten halka acik oldugu icin surum bilgisi ve kurulum dosyasi orada
+duruyor, uygulama yalnizca "en son surum ne" diye soruyor.
+
+### Kullanici tarafi
+
+Acilista arka planda denetleniyor. Yeni surum varsa ustte bir cubuk cikiyor:
+**"Yeni surum hazir: Palaskript 1.1.0"**. Kurulum ASLA kendiliginden yapilmiyor.
+
+Onaylandiginda kurulum dosyasi iniyor, **SHA-256 ozeti dogrulaniyor** (yarim
+inmis bir kurulum dosyasini calistirmak bozuk kuruluma yol acar), uygulama
+kapaniyor ve kurulum basliyor.
+
+Kurulum dosyasi ayni AppId ile uretildigi icin uzerine yaziyor, yan yana ikinci
+bir kurulum olusmuyor. **Kuyruk, ayarlar, ara kayitlar ve inmis modeller
+kullanici dizininde durdugu icin guncellemeden etkilenmiyor.**
+
+Is islenirken guncelleme reddediliyor: kullanici uyariliyor ve isin bitmesi
+bekleniyor.
+
+Ayarlar > YouTube ve sistem > Guncelleme bolumunden kapatilabiliyor.
+"Guncelleme denetle" arac cubugu dugmesi elle denetim yapiyor.
+
+### Yayinlayan tarafi
+
+**Once bir kez:** `palaskript/updates.py` icindeki `DEFAULT_REPO` degerini kendi
+deponuzla doldurun (`"kullanici/depo"`). Bos birakilirsa guncelleme denetimi
+hic calismaz; bu bilincli, yanlis bir depo adiyla sessizce baska birinin
+yayinlarini indirmeye calismak hic denetlememekten kotu.
+
+**Her yayinda:**
+
+```bash
+# 1. Surumu yukselt (TEK KAYNAK: palaskript/__init__.py)
+#    __version__ = "1.1.0"
+git commit -am "Surum 1.1.0"
+git tag v1.1.0
+git push && git push --tags
+```
+
+Gerisi `.github/workflows/release.yml` icinde oluyor: Windows kosucusunda
+kalite kapisi calisiyor, PyInstaller + Inno Setup ile kurulum dosyasi
+uretiliyor, SHA-256 ozetiyle birlikte yayina yukleniyor.
+
+Is akisi, **etiket ile koddaki surumun ayni oldugunu dogruluyor** ve
+ayrilirlarsa duruyor: uygulama etiketten okudugu surumu kendi surumuyle
+karsilastirdigi icin ikisi ayrilirsa guncelleme denetimi yanlis calisir.
+
+Elle yayinlamak isterseniz:
+
+```bash
+.venv\Scripts\python scriptsuild.py
+gh release create v1.1.0 dist/Palaskript-Setup-1.1.0.exe dist/Palaskript-Setup-1.1.0.exe.sha256
+```
+
+> PyInstaller capraz derleme yapmiyor: Windows kurulum dosyasi yalnizca
+> Windows'ta uretilebiliyor. Is akisi bu yuzden `windows-latest` kullaniyor.
+
+---
+
 ## Bakim
 
 **yt-dlp zamanla bozulur.** YouTube sik degisiyor ve paketle gelen surum birkac

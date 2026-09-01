@@ -1,0 +1,86 @@
+# Etiket atildiginda kurulum dosyasini uretip yayinla.
+#
+# Kullanim:
+#     palaskript/__init__.py icindeki __version__ degerini yukselt
+#     git commit -am "Surum 1.1.0"
+#     git tag v1.1.0
+#     git push && git push --tags
+#
+# Gerisi burada oluyor: Windows makinesinde paketleniyor, kurulum dosyasi ve
+# SHA-256 ozeti yayina yukleniyor. Kurulu uygulamalar bu yayini gorup
+# guncelleme teklif ediyor (palaskript/updates.py).
+#
+# Neden Windows kosucusu: PyInstaller capraz derleme yapmiyor, Windows
+# calistirilabiliri yalnizca Windows'ta uretilebiliyor.
+
+name: Yayin
+
+on:
+  push:
+    tags:
+      - "v*"
+  # Elle de calistirilabilsin: etiket atmadan denemek icin.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Bagimliliklari kur
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Kalite kapisi
+        run: |
+          ruff check palaskript tests scripts
+          pytest tests -q
+
+      - name: Inno Setup kur
+        run: choco install innosetup --no-progress -y
+
+      - name: Surumu etiketle karsilastir
+        shell: pwsh
+        run: |
+          $version = python -c "import palaskript; print(palaskript.__version__)"
+          $tag = "${{ github.ref_name }}" -replace '^v', ''
+          Write-Host "Kod surumu: $version, etiket: $tag"
+          # Etiketle koddaki surum ayrilirsa guncelleme denetimi yanlis calisir:
+          # uygulama etiketten okunan surumu kendi surumuyle karsilastiriyor.
+          if ($tag -and $version -ne $tag) {
+            Write-Error "Etiket ($tag) ile palaskript/__init__.py surumu ($version) ayni degil."
+            exit 1
+          }
+
+      - name: Paketle
+        run: python scripts/build.py --skip-checks
+
+      - name: Ciktilari sakla
+        uses: actions/upload-artifact@v4
+        with:
+          name: palaskript-setup
+          path: |
+            dist/Palaskript-Setup-*.exe
+            dist/Palaskript-Setup-*.exe.sha256
+
+      - name: Yayinla
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/Palaskript-Setup-*.exe
+            dist/Palaskript-Setup-*.exe.sha256
+          generate_release_notes: true
+          fail_on_unmatched_files: true
