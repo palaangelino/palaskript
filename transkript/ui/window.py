@@ -1,0 +1,589 @@
+"""Ana pencere: kuyruk tablosu, ekleme akisi, durum cubugu.
+
+Arayuz veritabanini duzenli araliklarla okuyor, isci surecten dogrudan sinyal
+almiyor. Bu bilerek boyle: is ayri bir surecte calisiyor ve tek gercek kaynak
+SQLite. Boylece uygulama kapanip acilsa da tablo ayni bilgiyi gosteriyor.
+"""
+
+from __future__ import annotations
+
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+from PySide6.QtCore import QObject, Qt, QThread, QTimer, QUrl, Signal
+from PySide6.QtGui import QAction, QCloseEvent, QDesktopServices, QDragEnterEvent, QDropEvent, QIcon
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QApplication,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QMainWindow,
+    QMenu,
+    QMessageBox,
+    QProgressBar,
+    QPushButton,
+    QSystemTrayIcon,
+    QTableWidget,
+    QTableWidgetItem,
+    QToolBar,
+    QVBoxLayout,
+    QWidget,
+)
+
+from .. import __version__, config, paths
+from ..chapters import format_timestamp
+from ..config import Settings
+from ..datatypes import SourceInfo
+from ..jobqueue.db import Database, Job
+from ..jobqueue.orchestrator import Orchestrator, cleanup_orphan_cache
+from ..power import keep_awake
+from ..resources import choose_profile, detect
+from ..source import resolver
+from .add_dialog import AddDialog
+from .settings_dialog import SettingsDialog
+
+_REFRESH_MS = 500
+
+_COLUMNS = ["Baslik", "Sure", "Durum", "Ilerleme", "Kalan"]
+_COL_TITLE, _COL_DURATION, _COL_STATUS, _COL_PROGRESS, _COL_ETA = range(5)
+
+
+class ResolveWorker(QObject):
+    """Girdileri arka planda cozer. Ag cagrilari arayuzu dondurmasin diye."""
+
+    finished = Signal(list, list)
+
+    def __init__(self, raw_lines: list[str], settings: Settings, known: set[str]) -> None:
+        super().__init__()
+        self._lines = raw_lines
+        self._settings = settings
+        self._known = known
+
+    def run(self) -> None:
+        sources, errors = resolver.resolve_many(
+            self._lines,
+            cookie_browser=self._settings.cookie_browser,
+            known_ids=self._known,
+        )
+        self.finished.emit(sources, [f"{e.raw}: {e.message}" for e in errors])
+
+
+class MainWindow(QMainWindow):
+    def __init__(self) -> None:
+        super().__init__()
+        paths.ensure_dirs()
+
+        self.settings = config.load()
+        self.db = Database()
+        resumed = self.db.reset_stale()
+        cleanup_orphan_cache(self.db)
+
+        self.orchestrator = Orchestrator(
+            self.db,
+            self.settings,
+            on_notify=self._notify,
+        )
+
+        self._rows: list[str] = []
+        self._resolve_thread: QThread | None = None
+        self._resolve_worker: ResolveWorker | None = None
+        self._last_clipboard = ""
+
+        self.setWindowTitle(f"Transkript {__version__}")
+        self.resize(1000, 620)
+        self.setAcceptDrops(True)
+
+        self._build_ui()
+        self._build_toolbar()
+        self._build_tray()
+
+        self.orchestrator.start()
+
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self.refresh)
+        self._timer.start(_REFRESH_MS)
+        self.refresh()
+
+        if resumed:
+            self.statusBar().showMessage(
+                f"{resumed} yarim kalmis is kaldigi yerden devam edecek.", 8000
+            )
+
+    # ------------------------------------------------------------- kurulum
+
+    def _build_ui(self) -> None:
+        central = QWidget()
+        layout = QVBoxLayout(central)
+        layout.setContentsMargins(10, 8, 10, 8)
+        layout.setSpacing(8)
+
+        self.clipboard_bar = self._banner("#e8f0fe", "#1a56b8")
+        self.clipboard_label = QLabel()
+        self.clipboard_add = QPushButton("Kuyruga ekle")
+        self.clipboard_dismiss = QPushButton("Yoksay")
+        self.clipboard_add.clicked.connect(self._add_from_clipboard)
+        self.clipboard_dismiss.clicked.connect(self._dismiss_clipboard)
+        self._fill_banner(
+            self.clipboard_bar,
+            self.clipboard_label,
+            [self.clipboard_add, self.clipboard_dismiss],
+        )
+        self.clipboard_bar.hide()
+        layout.addWidget(self.clipboard_bar)
+
+        self.decision_bar = self._banner("#fff4e5", "#8a5300")
+        self.decision_label = QLabel()
+        self.decision_subs = QPushButton("Hazir altyaziyi kullan")
+        self.decision_whisper = QPushButton("Whisper ile yaz")
+        self.decision_subs.clicked.connect(lambda: self._decide_all(True))
+        self.decision_whisper.clicked.connect(lambda: self._decide_all(False))
+        self._fill_banner(
+            self.decision_bar,
+            self.decision_label,
+            [self.decision_subs, self.decision_whisper],
+        )
+        self.decision_bar.hide()
+        layout.addWidget(self.decision_bar)
+
+        self.table = QTableWidget(0, len(_COLUMNS))
+        self.table.setHorizontalHeaderLabels(_COLUMNS)
+        self.table.verticalHeader().setVisible(False)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self._context_menu)
+        self.table.doubleClicked.connect(lambda: self._open_output("pdf"))
+
+        header = self.table.horizontalHeader()
+        header.setSectionResizeMode(_COL_TITLE, QHeaderView.ResizeMode.Stretch)
+        for col in (_COL_DURATION, _COL_STATUS, _COL_PROGRESS, _COL_ETA):
+            header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.setColumnWidth(_COL_PROGRESS, 160)
+        layout.addWidget(self.table, 1)
+
+        self.setCentralWidget(central)
+
+        self.profile_label = QLabel()
+        self.statusBar().addPermanentWidget(self.profile_label)
+        self._update_profile_label()
+
+    def _banner(self, background: str, border: str) -> QWidget:
+        bar = QWidget()
+        bar.setStyleSheet(
+            f"background-color: {background}; border: 1px solid {border}; border-radius: 4px;"
+        )
+        return bar
+
+    def _fill_banner(self, bar: QWidget, label: QLabel, buttons: list[QPushButton]) -> None:
+        row = QHBoxLayout(bar)
+        row.setContentsMargins(10, 6, 10, 6)
+        label.setWordWrap(True)
+        row.addWidget(label, 1)
+        for button in buttons:
+            row.addWidget(button)
+
+    def _build_toolbar(self) -> None:
+        bar = QToolBar("Ana")
+        bar.setMovable(False)
+        self.addToolBar(bar)
+
+        add = QAction("Ekle", self)
+        add.setShortcut("Ctrl+N")
+        add.triggered.connect(self.open_add_dialog)
+        bar.addAction(add)
+
+        bar.addSeparator()
+        self.pause_action = QAction("Duraklat", self)
+        self.pause_action.triggered.connect(self._toggle_pause)
+        bar.addAction(self.pause_action)
+
+        clear = QAction("Bitmisleri temizle", self)
+        clear.triggered.connect(self._clear_finished)
+        bar.addAction(clear)
+
+        bar.addSeparator()
+        open_out = QAction("Cikti klasoru", self)
+        open_out.triggered.connect(
+            lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(self.settings.output_dir))
+        )
+        bar.addAction(open_out)
+
+        settings_action = QAction("Ayarlar", self)
+        settings_action.triggered.connect(self.open_settings)
+        bar.addAction(settings_action)
+
+    def _build_tray(self) -> None:
+        self.tray: QSystemTrayIcon | None = None
+        if not QSystemTrayIcon.isSystemTrayAvailable():
+            return
+        icon_path = paths.assets_dir() / "icon.ico"
+        icon = QIcon(str(icon_path)) if icon_path.exists() else self.windowIcon()
+        self.tray = QSystemTrayIcon(icon, self)
+        self.tray.setToolTip("Transkript")
+        self.tray.show()
+
+    # -------------------------------------------------------------- ekleme
+
+    def open_add_dialog(self, initial: str = "") -> None:
+        dialog = AddDialog(self, initial=initial)
+        if dialog.exec() != AddDialog.DialogCode.Accepted:
+            return
+        self._resolve_and_add(resolver.parse_input_lines(dialog.raw_text()))
+
+    def _resolve_and_add(self, lines: list[str]) -> None:
+        if not lines:
+            return
+        if self._resolve_thread is not None:
+            QMessageBox.information(
+                self, "Bekleyin", "Onceki ekleme islemi hala suruyor."
+            )
+            return
+
+        self.statusBar().showMessage(f"{len(lines)} girdi cozumleniyor...")
+        worker = ResolveWorker(lines, self.settings, self.db.active_source_ids())
+        thread = QThread(self)
+        worker.moveToThread(thread)
+        thread.started.connect(worker.run)
+        worker.finished.connect(self._on_resolved)
+        worker.finished.connect(thread.quit)
+        thread.finished.connect(self._clear_resolve_thread)
+        self._resolve_thread = thread
+        self._resolve_worker = worker
+        thread.start()
+
+    def _clear_resolve_thread(self) -> None:
+        if self._resolve_thread is not None:
+            self._resolve_thread.deleteLater()
+        self._resolve_thread = None
+        self._resolve_worker = None
+
+    def _on_resolved(self, sources: list, errors: list) -> None:
+        typed: list[SourceInfo] = list(sources)
+        added, skipped = self.db.add_many(typed)
+
+        parts = [f"{len(added)} is eklendi"]
+        if skipped:
+            parts.append(f"{len(skipped)} tanesi zaten kuyrukta")
+        if errors:
+            parts.append(f"{len(errors)} girdi cozumlenemedi")
+        self.statusBar().showMessage(", ".join(parts), 8000)
+
+        if errors:
+            QMessageBox.warning(
+                self,
+                "Bazi girdiler eklenemedi",
+                "\n\n".join(str(e) for e in errors[:10]),
+            )
+        self.refresh()
+
+    def _add_from_clipboard(self) -> None:
+        text = QApplication.clipboard().text().strip()
+        self.clipboard_bar.hide()
+        self._last_clipboard = text
+        if text:
+            self._resolve_and_add([text])
+
+    def _dismiss_clipboard(self) -> None:
+        self._last_clipboard = QApplication.clipboard().text().strip()
+        self.clipboard_bar.hide()
+
+    def _check_clipboard(self) -> None:
+        if not self.isActiveWindow() or self.clipboard_bar.isVisible():
+            return
+        text = QApplication.clipboard().text().strip()
+        if not text or text == self._last_clipboard or "\n" in text:
+            return
+        if not resolver.is_url(text):
+            return
+        if any(job.raw_input == text for job in self.db.list_jobs()):
+            self._last_clipboard = text
+            return
+        shown = text if len(text) <= 90 else text[:87] + "..."
+        self.clipboard_label.setText(f"Panoda bir adres var: {shown}")
+        self.clipboard_bar.show()
+
+    # ---------------------------------------------------------- surukle birak
+
+    def dragEnterEvent(self, event: QDragEnterEvent) -> None:
+        if event.mimeData().hasUrls() or event.mimeData().hasText():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event: QDropEvent) -> None:
+        mime = event.mimeData()
+        lines: list[str] = []
+        if mime.hasUrls():
+            for url in mime.urls():
+                lines.append(url.toLocalFile() if url.isLocalFile() else url.toString())
+        elif mime.hasText():
+            lines = resolver.parse_input_lines(mime.text())
+        if lines:
+            event.acceptProposedAction()
+            self._resolve_and_add(lines)
+
+    # -------------------------------------------------------------- tablo
+
+    def refresh(self) -> None:
+        jobs = self.db.list_jobs()
+        ids = [job.id for job in jobs]
+
+        if ids != self._rows:
+            self._rebuild(jobs)
+            self._rows = ids
+        else:
+            for row, job in enumerate(jobs):
+                self._update_row(row, job)
+
+        self._refresh_decision_bar(jobs)
+        self._check_clipboard()
+        self._update_status(jobs)
+
+    def _rebuild(self, jobs: list[Job]) -> None:
+        self.table.setRowCount(len(jobs))
+        for row, job in enumerate(jobs):
+            for col in (_COL_TITLE, _COL_DURATION, _COL_STATUS, _COL_ETA):
+                if self.table.item(row, col) is None:
+                    self.table.setItem(row, col, QTableWidgetItem())
+            bar = QProgressBar()
+            bar.setRange(0, 100)
+            bar.setTextVisible(True)
+            bar.setFormat("%p%")
+            self.table.setCellWidget(row, _COL_PROGRESS, bar)
+            self._update_row(row, job)
+
+    def _update_row(self, row: int, job: Job) -> None:
+        title_item = self.table.item(row, _COL_TITLE)
+        if title_item is None:
+            return
+        title_item.setText(job.title)
+        title_item.setData(Qt.ItemDataRole.UserRole, job.id)
+        tooltip = job.url or job.raw_input
+        if job.error:
+            tooltip = f"{tooltip}\n\nHata: {job.error}"
+        elif job.message:
+            tooltip = f"{tooltip}\n\n{job.message}"
+        title_item.setToolTip(tooltip)
+
+        self.table.item(row, _COL_DURATION).setText(
+            format_timestamp(job.duration, always_hours=True) if job.duration else "-"
+        )
+
+        status_item = self.table.item(row, _COL_STATUS)
+        status_item.setText(job.status_label)
+        status_item.setToolTip(job.message or job.error or "")
+
+        bar = self.table.cellWidget(row, _COL_PROGRESS)
+        if isinstance(bar, QProgressBar):
+            bar.setValue(int(job.progress * 100))
+
+        eta = "-"
+        if job.status == "running" and job.eta_seconds and job.eta_seconds > 0:
+            eta = format_timestamp(job.eta_seconds, always_hours=True)
+        elif job.status == "done":
+            eta = "Hazir"
+        self.table.item(row, _COL_ETA).setText(eta)
+
+    def _selected_job(self) -> Job | None:
+        row = self.table.currentRow()
+        if row < 0:
+            return None
+        item = self.table.item(row, _COL_TITLE)
+        if item is None:
+            return None
+        job_id = item.data(Qt.ItemDataRole.UserRole)
+        return self.db.get(str(job_id)) if job_id else None
+
+    def _context_menu(self, position) -> None:  # noqa: ANN001 - Qt imzasi
+        job = self._selected_job()
+        if job is None:
+            return
+
+        menu = QMenu(self)
+        if job.status == "awaiting_decision":
+            menu.addAction(
+                "Hazir altyaziyi kullan", lambda: self._decide_one(job.id, True)
+            )
+            menu.addAction("Whisper ile yaz", lambda: self._decide_one(job.id, False))
+            menu.addSeparator()
+        if job.status == "done":
+            if job.pdf_path:
+                menu.addAction("PDF'i ac", lambda: self._open_path(job.pdf_path))
+            if job.txt_path:
+                menu.addAction("Metni ac", lambda: self._open_path(job.txt_path))
+            menu.addAction("Klasoru ac", lambda: self._reveal(job.pdf_path or job.txt_path))
+            menu.addSeparator()
+        if job.status in ("pending", "awaiting_decision"):
+            menu.addAction("Yukari tasi", lambda: self._move(job.id, -1))
+            menu.addAction("Asagi tasi", lambda: self._move(job.id, 1))
+            menu.addSeparator()
+        if job.is_active:
+            menu.addAction("Iptal et", lambda: self._cancel(job.id))
+        if job.status in ("failed", "cancelled"):
+            menu.addAction("Tekrar dene", lambda: self._retry(job.id))
+        if job.error:
+            menu.addAction("Hatayi goster", lambda: self._show_error(job))
+        menu.addSeparator()
+        menu.addAction("Kuyruktan sil", lambda: self._delete(job.id))
+        menu.exec(self.table.viewport().mapToGlobal(position))
+
+    # ------------------------------------------------------------- eylemler
+
+    def _move(self, job_id: str, delta: int) -> None:
+        self.db.move(job_id, delta)
+        self.refresh()
+
+    def _cancel(self, job_id: str) -> None:
+        self.orchestrator.cancel_job(job_id)
+        self.refresh()
+
+    def _retry(self, job_id: str) -> None:
+        self.db.retry(job_id)
+        self.refresh()
+
+    def _delete(self, job_id: str) -> None:
+        job = self.db.get(job_id)
+        if job and job.is_active:
+            self.orchestrator.cancel_job(job_id)
+        self.db.delete(job_id)
+        self.refresh()
+
+    def _decide_one(self, job_id: str, use_subs: bool) -> None:
+        self.db.decide_subtitles(job_id, use_subs)
+        self.refresh()
+
+    def _decide_all(self, use_subs: bool) -> None:
+        for job in self.db.list_jobs():
+            if job.status == "awaiting_decision":
+                self.db.decide_subtitles(job.id, use_subs)
+        self.refresh()
+
+    def _show_error(self, job: Job) -> None:
+        QMessageBox.warning(self, job.title, job.error or "Ayrinti yok.")
+
+    def _clear_finished(self) -> None:
+        removed = self.db.clear_finished()
+        cleanup_orphan_cache(self.db)
+        self.statusBar().showMessage(f"{removed} kayit temizlendi.", 5000)
+        self.refresh()
+
+    def _toggle_pause(self) -> None:
+        if self.orchestrator.is_paused:
+            self.orchestrator.resume()
+            self.pause_action.setText("Duraklat")
+        else:
+            self.orchestrator.pause()
+            self.pause_action.setText("Devam et")
+
+    def _open_output(self, kind: str) -> None:
+        job = self._selected_job()
+        if job is None or job.status != "done":
+            return
+        self._open_path(job.pdf_path if kind == "pdf" else job.txt_path)
+
+    def _open_path(self, path: str | None) -> None:
+        if path and Path(path).exists():
+            QDesktopServices.openUrl(QUrl.fromLocalFile(path))
+        else:
+            QMessageBox.information(self, "Bulunamadi", "Dosya tasinmis veya silinmis.")
+
+    def _reveal(self, path: str | None) -> None:
+        if not path:
+            return
+        target = Path(path)
+        if not target.exists():
+            QDesktopServices.openUrl(QUrl.fromLocalFile(self.settings.output_dir))
+            return
+        if sys.platform == "win32":
+            subprocess.Popen(["explorer", "/select,", os.path.normpath(str(target))])
+        else:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(target.parent)))
+
+    # --------------------------------------------------------------- durum
+
+    def _refresh_decision_bar(self, jobs: list[Job]) -> None:
+        waiting = [job for job in jobs if job.status == "awaiting_decision"]
+        if not waiting:
+            self.decision_bar.hide()
+            return
+        if len(waiting) == 1:
+            langs = waiting[0].manual_sub_langs or "?"
+            text = (
+                f"\"{waiting[0].title}\" videosunda hazir altyazi var ({langs}). "
+                "Altyaziyi kullanmak saniyeler surer, Whisper ile yazmak saatler."
+            )
+        else:
+            text = f"{len(waiting)} videoda hazir altyazi var. Nasil devam edilsin?"
+        self.decision_label.setText(text)
+        self.decision_bar.show()
+
+    def _update_profile_label(self) -> None:
+        hw = detect()
+        profile = choose_profile(
+            hw,
+            model_override=None if self.settings.model == "auto" else self.settings.model,
+            threads_override=self.settings.cpu_threads,
+            low_memory_mode=self.settings.low_memory_mode,
+        )
+        self.profile_label.setText(f"{hw.total_ram_gb:.0f} GB RAM  |  {profile.describe()}")
+        self.profile_label.setToolTip(hw.describe())
+
+    def _update_status(self, jobs: list[Job]) -> None:
+        counts: dict[str, int] = {}
+        for job in jobs:
+            counts[job.status] = counts.get(job.status, 0) + 1
+        pending = counts.get("pending", 0)
+        running = counts.get("running", 0)
+        done = counts.get("done", 0)
+        failed = counts.get("failed", 0)
+
+        parts = [f"{pending} bekliyor", f"{running} isleniyor", f"{done} bitti"]
+        if failed:
+            parts.append(f"{failed} hata")
+        if keep_awake.active:
+            parts.append("uyku engelleniyor")
+        if self.orchestrator.is_paused:
+            parts.append("DURAKLATILDI")
+        self.statusBar().showMessage("  |  ".join(parts))
+
+    def _notify(self, title: str, body: str) -> None:
+        if self.tray is not None:
+            self.tray.showMessage(title, body, QSystemTrayIcon.MessageIcon.Information, 6000)
+
+    # -------------------------------------------------------------- ayarlar
+
+    def open_settings(self) -> None:
+        dialog = SettingsDialog(self.settings, self)
+        if dialog.exec() != SettingsDialog.DialogCode.Accepted:
+            return
+        self.settings = dialog.result_settings()
+        config.save(self.settings)
+        self.orchestrator.update_settings(self.settings)
+        self._update_profile_label()
+        self.statusBar().showMessage("Ayarlar kaydedildi.", 4000)
+
+    # -------------------------------------------------------------- kapanis
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        active = [job for job in self.db.list_jobs() if job.status == "running"]
+        if active:
+            answer = QMessageBox.question(
+                self,
+                "Islem suruyor",
+                f"\"{active[0].title}\" hala isleniyor.\n\n"
+                "Simdi kapatirsaniz is kaldigi yerden devam etmek uzere kaydedilir. "
+                "Kapatilsin mi?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                event.ignore()
+                return
+
+        self._timer.stop()
+        self.orchestrator.stop(wait=True, timeout=15.0)
+        keep_awake.reset()
+        self.db.close()
+        event.accept()

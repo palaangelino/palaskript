@@ -1,0 +1,52 @@
+[project]
+name = "transkript"
+version = "1.0.0"
+description = "YouTube linkinden veya yerel videodan PDF transkript ureten offline masaustu uygulamasi"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+dependencies = [
+    "faster-whisper>=1.1.0",
+    "av>=12.0.0",
+    "yt-dlp>=2025.1.1",
+    "reportlab>=4.1.0",
+    "psutil>=5.9.0",
+    "PySide6-Essentials>=6.7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.6.0",
+    "pytest>=8.0.0",
+    "pyinstaller>=6.10.0",
+    # PDF metin katmaninin gercekten aranabilir oldugunu dogrulamak icin.
+    "pypdf>=5.0.0",
+]
+
+[project.scripts]
+transkript-cli = "transkript.cli:main"
+
+[project.gui-scripts]
+transkript = "transkript.main:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["transkript*"]
+
+[tool.setuptools.package-data]
+transkript = ["../assets/fonts/*.ttf", "../assets/*.ico"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]

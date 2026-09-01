@@ -1,0 +1,366 @@
+"""Tek bir isin ucdan uca boru hatti.
+
+Sira: kaynak coz -> (hazir altyazi varsa onu kullan) -> sesi indir -> modeli
+hazirla -> pencere pencere yaz -> paragraflandir -> bolumle -> PDF/TXT yaz.
+
+Bu modul arayuz bilmiyor. Ilerlemeyi geri cagri ile bildiriyor, iptali disaridan
+verilen bir kontrol fonksiyonuyla sorguluyor. Boylece hem komut satirindan hem
+de arayuzun isci surecinden ayni sekilde calisiyor.
+"""
+
+from __future__ import annotations
+
+import shutil
+import time
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
+
+from . import catalog, paths
+from . import chapters as chapters_mod
+from . import segments as seg_mod
+from .audio import iter_windows, probe_duration
+from .checkpoint import Checkpoint
+from .config import Settings
+from .datatypes import SourceInfo, TranscriptDoc
+from .engine.base import EngineError
+from .export import pdf as pdf_export
+from .export import txt as txt_export
+from .resources import (
+    HardwareInfo,
+    MemoryGuard,
+    Profile,
+    check_disk_for_model,
+    choose_profile,
+    detect,
+)
+from .source import file_source, ytdlp_source
+
+Stage = str
+
+
+@dataclass(slots=True)
+class Progress:
+    stage: Stage
+    fraction: float
+    message: str
+    eta_seconds: float | None = None
+
+
+ProgressCallback = Callable[[Progress], None]
+CancelCheck = Callable[[], bool]
+
+
+class JobCancelled(RuntimeError):
+    pass
+
+
+@dataclass(slots=True)
+class JobResult:
+    doc: TranscriptDoc
+    pdf_path: Path | None = None
+    txt_path: Path | None = None
+    audio_path: Path | None = None
+    from_subtitles: bool = False
+    elapsed_seconds: float = 0.0
+    warnings: list[str] = field(default_factory=list)
+
+
+# Asama agirliklari: kullaniciya tek bir yuzde gostermek icin.
+_WEIGHTS = {
+    "probe": (0.00, 0.02),
+    "subtitles": (0.02, 0.90),
+    "download": (0.02, 0.15),
+    "model": (0.15, 0.22),
+    "transcribe": (0.22, 0.95),
+    "export": (0.95, 1.00),
+}
+
+
+def _overall(stage: Stage, local: float) -> float:
+    lo, hi = _WEIGHTS.get(stage, (0.0, 1.0))
+    return lo + (hi - lo) * max(0.0, min(1.0, local))
+
+
+def _safe_filename(name: str, fallback: str = "transkript") -> str:
+    """Windows dosya adi icin temizle."""
+    bad = '<>:"/\\|?*'
+    cleaned = "".join("-" if c in bad else c for c in name)
+    cleaned = " ".join(cleaned.split()).strip(" .")
+    cleaned = cleaned[:120].strip()
+    return cleaned or fallback
+
+
+def run_job(
+    source: SourceInfo,
+    settings: Settings,
+    *,
+    job_id: str,
+    progress: ProgressCallback | None = None,
+    cancel: CancelCheck | None = None,
+    use_subtitles: bool = False,
+    hardware: HardwareInfo | None = None,
+    resume: bool = True,
+) -> JobResult:
+    """Bir isi bastan sona calistir."""
+    started = time.monotonic()
+    warnings: list[str] = []
+
+    def report(stage: Stage, local: float, message: str, eta: float | None = None) -> None:
+        if progress:
+            progress(Progress(stage, _overall(stage, local), message, eta))
+
+    def check_cancel() -> None:
+        if cancel and cancel():
+            raise JobCancelled("Is iptal edildi.")
+
+    paths.ensure_dirs()
+    hw = hardware or detect()
+    check_cancel()
+
+    # ------------------------------------------------------------ 1. kaynak
+    report("probe", 0.0, "Kaynak inceleniyor")
+    if source.kind == "youtube":
+        source = ytdlp_source.probe_full(source.url or "", cookie_browser=settings.cookie_browser)
+    report("probe", 1.0, source.title)
+    check_cancel()
+
+    work_dir = paths.cache_dir() / job_id
+    work_dir.mkdir(parents=True, exist_ok=True)
+
+    doc_segments = []
+    from_subtitles = False
+    model_label = ""
+    languages: list[str] = []
+    duration = source.duration
+
+    # -------------------------------------------- 2. hazir altyazi kisayolu
+    if use_subtitles and source.kind == "youtube":
+        report("subtitles", 0.1, "Hazir altyazi indiriliyor")
+        fetched = ytdlp_source.fetch_manual_subtitles(
+            source, work_dir, cookie_browser=settings.cookie_browser
+        )
+        if fetched:
+            doc_segments, lang = fetched
+            languages = [lang]
+            from_subtitles = True
+            model_label = f"YouTube altyazisi ({lang})"
+            report("subtitles", 1.0, f"Altyazi alindi ({len(doc_segments)} satir)")
+        else:
+            warnings.append("Hazir altyazi bulunamadi, Whisper ile yazildi.")
+
+    # --------------------------------------------------- 3. transkripsiyon
+    if not from_subtitles:
+        audio_path = source.audio_path
+
+        if source.kind == "youtube":
+            report("download", 0.0, "Ses indiriliyor")
+            audio_path = ytdlp_source.download_audio(
+                source,
+                work_dir,
+                progress=lambda f, m: report("download", f, m),
+                cookie_browser=settings.cookie_browser,
+            )
+            source.audio_path = audio_path
+        check_cancel()
+
+        if audio_path is None or not Path(audio_path).exists():
+            raise FileNotFoundError("Islenecek ses dosyasi bulunamadi.")
+
+        try:
+            duration = probe_duration(audio_path)
+        except Exception:  # noqa: BLE001 - meta veriden gelen sure yeterli
+            duration = source.duration
+
+        # Model
+        profile = choose_profile(
+            hw,
+            model_override=None if settings.model == "auto" else settings.model,
+            threads_override=settings.cpu_threads,
+            low_memory_mode=settings.low_memory_mode,
+        )
+        report("model", 0.0, f"Profil: {profile.describe()}")
+        check_disk_for_model(profile.model, hw)
+        model_dir = catalog.ensure_model(
+            profile.model, progress=lambda f, m: report("model", f, m)
+        )
+        check_cancel()
+
+        doc_segments, languages = _transcribe(
+            audio_path=Path(audio_path),
+            model_dir=model_dir,
+            profile=profile,
+            settings=settings,
+            duration=duration,
+            job_id=job_id,
+            report=report,
+            check_cancel=check_cancel,
+            resume=resume,
+            warnings=warnings,
+        )
+        model_label = f"faster-whisper {profile.model} (int8, CPU)"
+
+    # ------------------------------------------------------- 4. belgelestir
+    report("export", 0.0, "Belge hazirlaniyor")
+    paragraphs = seg_mod.build_paragraphs(doc_segments)
+    doc_chapters = chapters_mod.build_chapters(
+        source,
+        duration=duration or source.duration,
+        auto_interval_minutes=settings.auto_chapter_minutes,
+        enabled=settings.use_chapters,
+    )
+
+    doc = TranscriptDoc(
+        source=source,
+        paragraphs=paragraphs,
+        chapters=doc_chapters,
+        languages=languages,
+        model_name=model_label,
+        created_at=datetime.now(),
+        from_subtitles=from_subtitles,
+    )
+
+    # ------------------------------------------------------- 5. disa aktar
+    out_dir = settings.output_path
+    out_dir.mkdir(parents=True, exist_ok=True)
+    stem = _safe_filename(source.title)
+
+    result = JobResult(
+        doc=doc,
+        from_subtitles=from_subtitles,
+        elapsed_seconds=time.monotonic() - started,
+        warnings=warnings,
+    )
+
+    if settings.export_pdf:
+        report("export", 0.3, "PDF yaziliyor")
+        result.pdf_path = pdf_export.write(doc, out_dir / f"{stem}.pdf", settings)
+    if settings.export_txt:
+        report("export", 0.7, "Metin dosyasi yaziliyor")
+        result.txt_path = txt_export.write(doc, out_dir / f"{stem}.txt", settings)
+
+    # ------------------------------------------------------- 6. temizlik
+    if source.kind == "youtube" and source.audio_path:
+        if settings.keep_audio:
+            kept = out_dir / f"{stem}{Path(source.audio_path).suffix}"
+            try:
+                shutil.move(str(source.audio_path), kept)
+                result.audio_path = kept
+            except OSError:
+                result.audio_path = Path(source.audio_path)
+        else:
+            shutil.rmtree(work_dir, ignore_errors=True)
+    elif source.kind == "youtube":
+        shutil.rmtree(work_dir, ignore_errors=True)
+
+    Checkpoint(job_id).clear()
+    result.elapsed_seconds = time.monotonic() - started
+    report("export", 1.0, "Tamamlandi")
+    return result
+
+
+def _transcribe(
+    *,
+    audio_path: Path,
+    model_dir: Path,
+    profile: Profile,
+    settings: Settings,
+    duration: float,
+    job_id: str,
+    report: Callable[..., None],
+    check_cancel: Callable[[], None],
+    resume: bool,
+    warnings: list[str],
+) -> tuple[list, list[str]]:
+    """Pencereli transkripsiyon dongusu.
+
+    Her pencere sonunda ara kayit isaretleniyor; cokme sonrasi is o noktadan
+    devam ediyor.
+    """
+    from .engine.local import LocalWhisperEngine
+
+    language = None if settings.language == "auto" else settings.language
+    checkpoint = Checkpoint(job_id)
+
+    prior_segments = []
+    start_at = 0.0
+    if resume and checkpoint.exists():
+        prior_segments, start_at, _ = checkpoint.load()
+        if start_at > 0:
+            report(
+                "transcribe",
+                start_at / duration if duration else 0.0,
+                f"Kaldigi yerden devam ediliyor ({chapters_mod.format_timestamp(start_at)})",
+            )
+
+    assembler = seg_mod.TranscriptAssembler()
+    assembler.segments.extend(prior_segments)
+
+    guard = MemoryGuard(profile)
+    engine = LocalWhisperEngine(model_dir, profile, language=language)
+
+    processed = start_at
+    wall_start = time.monotonic()
+
+    try:
+        with checkpoint as ck:
+            ck.write_meta(
+                job_id=job_id,
+                model=profile.model,
+                audio=str(audio_path),
+                duration=duration,
+            )
+
+            for window in iter_windows(
+                audio_path,
+                profile.window_seconds,
+                start_at=start_at,
+            ):
+                check_cancel()
+
+                batch_size, note = guard.check()
+                if note:
+                    warnings.append(note)
+                    report("transcribe", processed / duration if duration else 0.0, note)
+
+                try:
+                    produced = engine.transcribe_window(
+                        window.samples, offset=window.start, batch_size=batch_size
+                    )
+                except EngineError as exc:
+                    # Tek pencerenin patlamasi 3 saatlik isi cope atmasin.
+                    warnings.append(
+                        f"{chapters_mod.format_timestamp(window.start)} civari atlandi: {exc}"
+                    )
+                    produced = []
+
+                accepted = assembler.add_window(produced, overlapped=window.overlapped)
+                ck.write_segments(accepted)
+                ck.commit_window(window.index, window.end)
+
+                processed = window.end
+                frac = processed / duration if duration else 0.0
+                elapsed = time.monotonic() - wall_start
+                done = max(1e-6, processed - start_at)
+                rate = done / elapsed if elapsed > 0 else 0.0
+                eta = ((duration - processed) / rate) if rate > 0 and duration else None
+
+                report(
+                    "transcribe",
+                    frac,
+                    f"Yaziliyor {chapters_mod.format_timestamp(processed)} / "
+                    f"{chapters_mod.format_timestamp(duration)}",
+                    eta,
+                )
+    finally:
+        engine.close()
+
+    return assembler.result(), engine.detected_languages
+
+
+def probe_source(raw: str, settings: Settings) -> SourceInfo:
+    """Tek girdiyi cozup SourceInfo dondur (komut satiri icin kisayol)."""
+    if ytdlp_source.is_url(raw):
+        return ytdlp_source.probe_full(raw, cookie_browser=settings.cookie_browser)
+    return file_source.probe(Path(raw))
