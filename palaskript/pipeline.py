@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-from . import catalog, paths
+from . import catalog, paths, stages
 from . import chapters as chapters_mod
 from . import segments as seg_mod
 from .audio import AudioDecodeError, export_archive_audio, iter_windows, probe_duration
@@ -78,20 +78,8 @@ _LIVE_PROGRESS_SECONDS = 2.0
 _ETA_MIN_SECONDS = 25.0
 _ETA_MIN_AUDIO_SECONDS = 45.0
 
-# Asama agirliklari: kullaniciya tek bir yuzde gostermek icin.
-_WEIGHTS = {
-    "probe": (0.00, 0.02),
-    "subtitles": (0.02, 0.90),
-    "download": (0.02, 0.15),
-    "model": (0.15, 0.22),
-    "transcribe": (0.22, 0.95),
-    "export": (0.95, 1.00),
-}
-
-
-def _overall(stage: Stage, local: float) -> float:
-    lo, hi = _WEIGHTS.get(stage, (0.0, 1.0))
-    return lo + (hi - lo) * max(0.0, min(1.0, local))
+# Asama agirliklari palaskript/stages.py icinde: arayuz de ayni sayilari
+# kullaniyor (iki bildirim arasini doldururken).
 
 
 def _safe_filename(name: str, fallback: str = "transkript") -> str:
@@ -120,7 +108,7 @@ def run_job(
 
     def report(stage: Stage, local: float, message: str, eta: float | None = None) -> None:
         if progress:
-            progress(Progress(stage, _overall(stage, local), message, eta))
+            progress(Progress(stage, stages.overall(stage, local), message, eta))
 
     def check_cancel() -> None:
         if cancel and cancel():
@@ -200,6 +188,7 @@ def run_job(
         check_cancel()
 
         stats: dict = {"model": profile.model, "batch_size": profile.batch_size}
+        report("model", 0.85, "Model belleğe yükleniyor")
         doc_segments, languages = _transcribe(
             stats=stats,
             audio_path=Path(audio_path),

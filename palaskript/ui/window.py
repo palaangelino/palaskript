@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Qt, QThread, QTimer, QUrl, Signal
@@ -121,6 +122,9 @@ class MainWindow(QMainWindow):
         self._update_thread: QThread | None = None
         self._update_worker: UpdateChecker | None = None
         self._pending_release = None
+        # Is basina son GERCEK kalan sure ve alindigi an. Bildirimler
+        # dakikalar arayla geldigi icin arasi burada sayiliyor.
+        self._eta_anchors: dict[str, tuple[float, float]] = {}
 
         self.setWindowTitle(f"Palaskript {__version__}")
         self.resize(1000, 620)
@@ -439,15 +443,55 @@ class MainWindow(QMainWindow):
 
         cell = self.table.cellWidget(row, _COL_PROGRESS)
         if isinstance(cell, ProgressCell):
-            # Isik bandi yalnizca gercekten islenen satirda donuyor.
-            cell.update_state(job.progress * 100, active=job.status == "running")
+            # Cubuk gercek bildirimler arasini kendi hesapliyor; asama ve
+            # kalan sure bunun icin gerekiyor.
+            cell.set_state(
+                percent=job.progress * 100,
+                stage=job.stage,
+                eta_seconds=self._live_eta(job),
+                running=job.status == "running",
+                finished=job.status == "done",
+            )
 
-        eta = "-"
-        if job.status == "running" and job.eta_seconds and job.eta_seconds > 0:
-            eta = format_timestamp(job.eta_seconds, always_hours=True)
-        elif job.status == "done":
-            eta = "Hazır"
-        self.table.item(row, _COL_ETA).setText(eta)
+        self.table.item(row, _COL_ETA).setText(self._eta_text(job))
+
+    def _live_eta(self, job: Job) -> float | None:
+        """Gercek zamanli kalan sure.
+
+        Boru hatti kalan sureyi dakikalar arayla bildiriyor; arada sabit
+        durmasi "sayac donmus" izlenimi veriyor. Son bildirilen degerden
+        gecen sureyi dusuyoruz. Yeni bir bildirim gelince demir yenileniyor.
+        """
+        if job.status != "running":
+            self._eta_anchors.pop(job.id, None)
+            return None
+        if not job.eta_seconds or job.eta_seconds <= 0:
+            return None
+
+        now = time.monotonic()
+        anchor = self._eta_anchors.get(job.id)
+        if anchor is None or anchor[0] != job.eta_seconds:
+            # Yeni (veya ilk) bildirim: demiri buraya at.
+            self._eta_anchors[job.id] = (job.eta_seconds, now)
+            return job.eta_seconds
+
+        reported, at = anchor
+        return max(0.0, reported - (now - at))
+
+    def _eta_text(self, job: Job) -> str:
+        if job.status == "done":
+            return "Hazır"
+        if job.status != "running":
+            return "-"
+
+        remaining = self._live_eta(job)
+        if remaining is None:
+            # Henuz guvenilir bir tahmin yok. Uydurmaktansa soylemiyoruz.
+            return "hesaplanıyor"
+        if remaining < 30:
+            # Sayacin sifirda takilmasindansa durumu soyluyoruz.
+            return "bitmek üzere"
+        return format_timestamp(remaining, always_hours=True)
 
     def _selected_job(self) -> Job | None:
         row = self.table.currentRow()
