@@ -6,6 +6,8 @@ ucuncu bir servise gonderilmiyor.
 
 Link yapistir, kuyruga at, PDF al.
 
+![Palaskript ana penceresi](arayuz/1-ana-pencere.png)
+
 ---
 
 ## Ne yapiyor
