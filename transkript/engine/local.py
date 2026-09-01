@@ -120,7 +120,15 @@ class LocalWhisperEngine:
         *,
         offset: float,
         batch_size: int,
+        on_segment: Callable[[Segment], None] | None = None,
     ) -> list[Segment]:
+        """Pencereyi yaz.
+
+        on_segment verilirse her segment uretildigi anda cagriliyor. Bu SADECE
+        ilerleme bildirimi icin: bir pencere 10 dakikalik ses tasiyor ve
+        yalnizca pencere sonunda rapor verilseydi kullanici 3.5 saatlik bir iste
+        ilerleme cubugunu 9 dakikada bir hareket ederken gorurdu.
+        """
         if samples.size == 0:
             return []
 
@@ -150,14 +158,15 @@ class LocalWhisperEngine:
                 continue
             lang = getattr(seg, "language", None) or detected
             self._note_language(lang)
-            out.append(
-                Segment(
-                    start=float(seg.start) + offset,
-                    end=float(seg.end) + offset,
-                    text=text,
-                    language=lang,
-                )
+            produced = Segment(
+                start=float(seg.start) + offset,
+                end=float(seg.end) + offset,
+                text=text,
+                language=lang,
             )
+            out.append(produced)
+            if on_segment is not None:
+                on_segment(produced)
         return out
 
     def close(self) -> None:

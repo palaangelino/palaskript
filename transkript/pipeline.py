@@ -67,6 +67,9 @@ class JobResult:
     warnings: list[str] = field(default_factory=list)
 
 
+# Pencere ici canli ilerleme bildirimleri arasindaki en kisa sure.
+_LIVE_PROGRESS_SECONDS = 2.0
+
 # Asama agirliklari: kullaniciya tek bir yuzde gostermek icin.
 _WEIGHTS = {
     "probe": (0.00, 0.02),
@@ -145,10 +148,10 @@ def run_job(
             doc_segments, lang = fetched
             languages = [lang]
             from_subtitles = True
-            model_label = f"YouTube altyazisi ({lang})"
+            model_label = f"YouTube altyazısı ({lang})"
             report("subtitles", 1.0, f"Altyazi alindi ({len(doc_segments)} satir)")
         else:
-            warnings.append("Hazir altyazi bulunamadi, Whisper ile yazildi.")
+            warnings.append("Hazır altyazı bulunamadı, Whisper ile yazıldı.")
 
     # --------------------------------------------------- 3. transkripsiyon
     if not from_subtitles:
@@ -323,6 +326,35 @@ def _transcribe(
                 duration=duration,
             )
 
+            def announce(position: float) -> None:
+                """Ilerlemeyi ve kalan sureyi bildir."""
+                live = min(position, duration) if duration else position
+                elapsed = time.monotonic() - wall_start
+                covered = max(1e-6, live - start_at)
+                rate = covered / elapsed if elapsed > 0 else 0.0
+                eta = ((duration - live) / rate) if rate > 0 and duration else None
+                report(
+                    "transcribe",
+                    live / duration if duration else 0.0,
+                    f"Yazılıyor {chapters_mod.format_timestamp(live)} / "
+                    f"{chapters_mod.format_timestamp(duration)}",
+                    eta,
+                )
+
+            # Pencere ici canli ilerleme. Bir pencere 10 dakikalik ses tasiyor;
+            # sadece pencere sonunda bildirseydik 3.5 saatlik bir iste ilerleme
+            # cubugu 9 dakikada bir hareket ederdi. Iki saniyede birden sik
+            # bildirmiyoruz, aksi halde surecler arasi kuyruk gereksiz doluyor.
+            last_live = 0.0
+
+            def on_segment(seg) -> None:  # noqa: ANN001 - Segment
+                nonlocal last_live
+                now = time.monotonic()
+                if now - last_live < _LIVE_PROGRESS_SECONDS:
+                    return
+                last_live = now
+                announce(seg.end)
+
             for window in iter_windows(
                 audio_path,
                 profile.window_seconds,
@@ -337,7 +369,10 @@ def _transcribe(
 
                 try:
                     produced = engine.transcribe_window(
-                        window.samples, offset=window.start, batch_size=batch_size
+                        window.samples,
+                        offset=window.start,
+                        batch_size=batch_size,
+                        on_segment=on_segment,
                     )
                 except EngineError as exc:
                     # Tek pencerenin patlamasi 3 saatlik isi cope atmasin.
@@ -351,19 +386,7 @@ def _transcribe(
                 ck.commit_window(window.index, window.end)
 
                 processed = window.end
-                frac = processed / duration if duration else 0.0
-                elapsed = time.monotonic() - wall_start
-                done = max(1e-6, processed - start_at)
-                rate = done / elapsed if elapsed > 0 else 0.0
-                eta = ((duration - processed) / rate) if rate > 0 and duration else None
-
-                report(
-                    "transcribe",
-                    frac,
-                    f"Yaziliyor {chapters_mod.format_timestamp(processed)} / "
-                    f"{chapters_mod.format_timestamp(duration)}",
-                    eta,
-                )
+                announce(processed)
     finally:
         engine.close()
 

@@ -19,18 +19,18 @@ def _header(doc: TranscriptDoc) -> list[str]:
     src = doc.source
     lines = [_RULE, src.title, _RULE]
     if src.channel:
-        lines.append(f"Kanal      : {src.channel}")
+        lines.append(f"Kanal        : {src.channel}")
     if src.url:
-        lines.append(f"Kaynak     : {src.url}")
+        lines.append(f"Kaynak       : {src.url}")
     if src.upload_date and len(src.upload_date) == 8:
         d = src.upload_date
-        lines.append(f"Yayin      : {d[6:8]}.{d[4:6]}.{d[0:4]}")
-    lines.append(f"Sure       : {format_timestamp(src.duration, always_hours=True)}")
-    lines.append(f"Uretim     : {doc.created_at.strftime('%d.%m.%Y %H:%M')}")
-    lines.append(f"Kaynak tur : {doc.model_name}")
+        lines.append(f"Yayın tarihi : {d[6:8]}.{d[4:6]}.{d[0:4]}")
+    lines.append(f"Süre         : {format_timestamp(src.duration, always_hours=True)}")
+    lines.append(f"Üretim       : {doc.created_at.strftime('%d.%m.%Y %H:%M')}")
+    lines.append(f"Yazım        : {doc.model_name}")
     if doc.languages:
-        lines.append(f"Dil        : {', '.join(doc.languages)}")
-    lines.append(f"Kelime     : {doc.word_count}")
+        lines.append(f"Dil          : {', '.join(doc.languages)}")
+    lines.append(f"Kelime       : {doc.word_count}")
     lines.append(_RULE)
     lines.append("")
     return lines

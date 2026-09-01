@@ -23,6 +23,19 @@ _CUE_RE = re.compile(rf"({_TIME})\s*-->\s*({_TIME})")
 _TAG_RE = re.compile(r"<[^>]+>")
 _CUE_SETTINGS_RE = re.compile(r"\s+(align|position|size|line|vertical):\S+")
 
+# Altyazi dosyalarinin basindaki ceviri/redaksiyon kunyesi. TED konusmalarinda
+# neredeyse her zaman var ve konusmanin bir parcasi degil; birakilirsa belgenin
+# ilk paragrafi "Transcriber: ... Reviewer: ..." olarak aciliyor.
+_CREDIT_RE = re.compile(
+    r"^\s*(transcriber|reviewer|translator|translated by|reviewed by|subtitles? by|"
+    r"captions? by|çeviri|çeviren|gözden geçirme|gözden geçiren|altyazı)\s*[:：]",
+    re.IGNORECASE,
+)
+
+# Kunye sadece bastaki bu kadar cue icinde araniyor. Konusmanin ortasinda
+# "Çeviri:" diye baslayan gercek bir cumle olabilir, onu silmek istemiyoruz.
+_CREDIT_SCAN_CUES = 2
+
 
 def _to_seconds(hours: str | None, minutes: str, seconds: str, millis: str) -> float:
     h = int(hours) if hours else 0
@@ -58,7 +71,17 @@ def parse(text: str) -> list[Segment]:
             segments.append(Segment(start=start, end=end, text=cleaned))
         i += 1
 
-    return _dedupe(segments)
+    return _dedupe(_drop_credits(segments))
+
+
+def _drop_credits(segments: list[Segment]) -> list[Segment]:
+    """Bastaki ceviri kunyesini at."""
+    kept: list[Segment] = []
+    for index, seg in enumerate(segments):
+        if index < _CREDIT_SCAN_CUES and _CREDIT_RE.match(seg.text):
+            continue
+        kept.append(seg)
+    return kept
 
 
 def _clean(raw: str) -> str:

@@ -221,7 +221,7 @@ class TestJobHelpers:
         job = db.add(yt("a"), "a")
         db.mark_running(job.id)
         db.update_progress(job.id, stage="transcribe")
-        assert db.get(job.id).status_label == "Yaziliyor"
+        assert db.get(job.id).status_label == "Yazılıyor"
 
     def test_status_label_falls_back_to_status(self, db):
         job = db.add(yt("a"), "a")

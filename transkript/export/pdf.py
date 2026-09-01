@@ -224,16 +224,16 @@ def _cover(doc: TranscriptDoc, styles: dict[str, ParagraphStyle]) -> list:
     add("Kaynak", src.url)
     if src.upload_date and len(src.upload_date) == 8:
         d = src.upload_date
-        add("Yayin tarihi", f"{d[6:8]}.{d[4:6]}.{d[0:4]}")
-    add("Sure", format_timestamp(src.duration, always_hours=True))
-    add("Uretim tarihi", doc.created_at.strftime("%d.%m.%Y %H:%M"))
-    add("Kaynak", doc.model_name)
+        add("Yayın tarihi", f"{d[6:8]}.{d[4:6]}.{d[0:4]}")
+    add("Süre", format_timestamp(src.duration, always_hours=True))
+    add("Üretim tarihi", doc.created_at.strftime("%d.%m.%Y %H:%M"))
+    add("Yazım yöntemi", doc.model_name)
     if doc.languages:
-        add("Algilanan dil", ", ".join(doc.languages))
-    add("Kelime sayisi", f"{doc.word_count:,}".replace(",", "."))
+        add("Algılanan dil", ", ".join(doc.languages))
+    add("Kelime sayısı", f"{doc.word_count:,}".replace(",", "."))
     if doc.chapters:
-        origin = "video bolumleri" if doc.chapters[0].origin == "youtube" else "zamana gore"
-        add("Bolum", f"{len(doc.chapters)} ({origin})")
+        origin = "video bölümleri" if doc.chapters[0].origin == "youtube" else "zamana göre"
+        add("Bölüm", f"{len(doc.chapters)} ({origin})")
 
     table = Table(rows, colWidths=[3.6 * cm, PAGE_SIZE[0] - 2 * MARGIN - 3.6 * cm])
     table.setStyle(
@@ -252,7 +252,7 @@ def _cover(doc: TranscriptDoc, styles: dict[str, ParagraphStyle]) -> list:
         story.append(Spacer(1, 0.8 * cm))
         story.append(
             Paragraph(
-                "Bu belge videonun kendi altyazisindan uretildi, ses yeniden yazilmadi.",
+                "Bu belge videonun kendi altyazısından üretildi, ses yeniden yazılmadı.",
                 styles["metaLabel"],
             )
         )
@@ -290,7 +290,7 @@ def _body(doc: TranscriptDoc, settings: Settings, styles: dict[str, ParagraphSty
             story.append(Paragraph(text, styles["body"]))
 
     if not story:
-        story.append(Paragraph("Bu videoda yaziya dokulebilecek konusma bulunamadi.", styles["body"]))
+        story.append(Paragraph("Bu videoda yazıya dökülebilecek konuşma bulunamadı.", styles["body"]))
     return story
 
 
@@ -318,7 +318,7 @@ def write(doc: TranscriptDoc, path: Path, settings: Settings) -> Path:
         toc = TableOfContents()
         toc.levelStyles = [styles["toc1"]]
         toc.dotsMinLevel = 0
-        story.append(Paragraph("Icindekiler", styles["tocTitle"]))
+        story.append(Paragraph("İçindekiler", styles["tocTitle"]))
         story.append(toc)
         story.append(PageBreak())
 

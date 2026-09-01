@@ -47,7 +47,7 @@ from .settings_dialog import SettingsDialog
 
 _REFRESH_MS = 500
 
-_COLUMNS = ["Baslik", "Sure", "Durum", "Ilerleme", "Kalan"]
+_COLUMNS = ["Başlık", "Süre", "Durum", "İlerleme", "Kalan"]
 _COL_TITLE, _COL_DURATION, _COL_STATUS, _COL_PROGRESS, _COL_ETA = range(5)
 
 
@@ -109,7 +109,7 @@ class MainWindow(QMainWindow):
 
         if resumed:
             self.statusBar().showMessage(
-                f"{resumed} yarim kalmis is kaldigi yerden devam edecek.", 8000
+                f"{resumed} yarım kalmış iş kaldığı yerden devam edecek.", 8000
             )
 
     # ------------------------------------------------------------- kurulum
@@ -122,7 +122,7 @@ class MainWindow(QMainWindow):
 
         self.clipboard_bar = self._banner("#e8f0fe", "#1a56b8")
         self.clipboard_label = QLabel()
-        self.clipboard_add = QPushButton("Kuyruga ekle")
+        self.clipboard_add = QPushButton("Kuyruğa ekle")
         self.clipboard_dismiss = QPushButton("Yoksay")
         self.clipboard_add.clicked.connect(self._add_from_clipboard)
         self.clipboard_dismiss.clicked.connect(self._dismiss_clipboard)
@@ -136,7 +136,7 @@ class MainWindow(QMainWindow):
 
         self.decision_bar = self._banner("#fff4e5", "#8a5300")
         self.decision_label = QLabel()
-        self.decision_subs = QPushButton("Hazir altyaziyi kullan")
+        self.decision_subs = QPushButton("Hazır altyazıyı kullan")
         self.decision_whisper = QPushButton("Whisper ile yaz")
         self.decision_subs.clicked.connect(lambda: self._decide_all(True))
         self.decision_whisper.clicked.connect(lambda: self._decide_all(False))
@@ -201,12 +201,12 @@ class MainWindow(QMainWindow):
         self.pause_action.triggered.connect(self._toggle_pause)
         bar.addAction(self.pause_action)
 
-        clear = QAction("Bitmisleri temizle", self)
+        clear = QAction("Bitmişleri temizle", self)
         clear.triggered.connect(self._clear_finished)
         bar.addAction(clear)
 
         bar.addSeparator()
-        open_out = QAction("Cikti klasoru", self)
+        open_out = QAction("Çıktı klasörü", self)
         open_out.triggered.connect(
             lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(self.settings.output_dir))
         )
@@ -239,11 +239,11 @@ class MainWindow(QMainWindow):
             return
         if self._resolve_thread is not None:
             QMessageBox.information(
-                self, "Bekleyin", "Onceki ekleme islemi hala suruyor."
+                self, "Bekleyin", "Önceki ekleme işlemi hâlâ sürüyor."
             )
             return
 
-        self.statusBar().showMessage(f"{len(lines)} girdi cozumleniyor...")
+        self.statusBar().showMessage(f"{len(lines)} girdi çözümleniyor...")
         worker = ResolveWorker(lines, self.settings, self.db.active_source_ids())
         thread = QThread(self)
         worker.moveToThread(thread)
@@ -265,17 +265,17 @@ class MainWindow(QMainWindow):
         typed: list[SourceInfo] = list(sources)
         added, skipped = self.db.add_many(typed)
 
-        parts = [f"{len(added)} is eklendi"]
+        parts = [f"{len(added)} iş eklendi"]
         if skipped:
             parts.append(f"{len(skipped)} tanesi zaten kuyrukta")
         if errors:
-            parts.append(f"{len(errors)} girdi cozumlenemedi")
+            parts.append(f"{len(errors)} girdi çözümlenemedi")
         self.statusBar().showMessage(", ".join(parts), 8000)
 
         if errors:
             QMessageBox.warning(
                 self,
-                "Bazi girdiler eklenemedi",
+                "Bazı girdiler eklenemedi",
                 "\n\n".join(str(e) for e in errors[:10]),
             )
         self.refresh()
@@ -404,27 +404,27 @@ class MainWindow(QMainWindow):
         menu = QMenu(self)
         if job.status == "awaiting_decision":
             menu.addAction(
-                "Hazir altyaziyi kullan", lambda: self._decide_one(job.id, True)
+                "Hazır altyazıyı kullan", lambda: self._decide_one(job.id, True)
             )
             menu.addAction("Whisper ile yaz", lambda: self._decide_one(job.id, False))
             menu.addSeparator()
         if job.status == "done":
             if job.pdf_path:
-                menu.addAction("PDF'i ac", lambda: self._open_path(job.pdf_path))
+                menu.addAction("PDF'i aç", lambda: self._open_path(job.pdf_path))
             if job.txt_path:
-                menu.addAction("Metni ac", lambda: self._open_path(job.txt_path))
-            menu.addAction("Klasoru ac", lambda: self._reveal(job.pdf_path or job.txt_path))
+                menu.addAction("Metni aç", lambda: self._open_path(job.txt_path))
+            menu.addAction("Klasörü aç", lambda: self._reveal(job.pdf_path or job.txt_path))
             menu.addSeparator()
         if job.status in ("pending", "awaiting_decision"):
-            menu.addAction("Yukari tasi", lambda: self._move(job.id, -1))
-            menu.addAction("Asagi tasi", lambda: self._move(job.id, 1))
+            menu.addAction("Yukarı taşı", lambda: self._move(job.id, -1))
+            menu.addAction("Aşağı taşı", lambda: self._move(job.id, 1))
             menu.addSeparator()
         if job.is_active:
-            menu.addAction("Iptal et", lambda: self._cancel(job.id))
+            menu.addAction("İptal et", lambda: self._cancel(job.id))
         if job.status in ("failed", "cancelled"):
             menu.addAction("Tekrar dene", lambda: self._retry(job.id))
         if job.error:
-            menu.addAction("Hatayi goster", lambda: self._show_error(job))
+            menu.addAction("Hatayı göster", lambda: self._show_error(job))
         menu.addSeparator()
         menu.addAction("Kuyruktan sil", lambda: self._delete(job.id))
         menu.exec(self.table.viewport().mapToGlobal(position))
@@ -461,12 +461,12 @@ class MainWindow(QMainWindow):
         self.refresh()
 
     def _show_error(self, job: Job) -> None:
-        QMessageBox.warning(self, job.title, job.error or "Ayrinti yok.")
+        QMessageBox.warning(self, job.title, job.error or "Ayrıntı yok.")
 
     def _clear_finished(self) -> None:
         removed = self.db.clear_finished()
         cleanup_orphan_cache(self.db)
-        self.statusBar().showMessage(f"{removed} kayit temizlendi.", 5000)
+        self.statusBar().showMessage(f"{removed} kayıt temizlendi.", 5000)
         self.refresh()
 
     def _toggle_pause(self) -> None:
@@ -487,7 +487,7 @@ class MainWindow(QMainWindow):
         if path and Path(path).exists():
             QDesktopServices.openUrl(QUrl.fromLocalFile(path))
         else:
-            QMessageBox.information(self, "Bulunamadi", "Dosya tasinmis veya silinmis.")
+            QMessageBox.information(self, "Bulunamadı", "Dosya taşınmış veya silinmiş.")
 
     def _reveal(self, path: str | None) -> None:
         if not path:
@@ -511,11 +511,11 @@ class MainWindow(QMainWindow):
         if len(waiting) == 1:
             langs = waiting[0].manual_sub_langs or "?"
             text = (
-                f"\"{waiting[0].title}\" videosunda hazir altyazi var ({langs}). "
-                "Altyaziyi kullanmak saniyeler surer, Whisper ile yazmak saatler."
+                f"\"{waiting[0].title}\" videosunda hazır altyazı var ({langs}). "
+                "Altyazıyı kullanmak saniyeler sürer, Whisper ile yazmak saatler."
             )
         else:
-            text = f"{len(waiting)} videoda hazir altyazi var. Nasil devam edilsin?"
+            text = f"{len(waiting)} videoda hazır altyazı var. Nasıl devam edilsin?"
         self.decision_label.setText(text)
         self.decision_bar.show()
 
@@ -539,7 +539,7 @@ class MainWindow(QMainWindow):
         done = counts.get("done", 0)
         failed = counts.get("failed", 0)
 
-        parts = [f"{pending} bekliyor", f"{running} isleniyor", f"{done} bitti"]
+        parts = [f"{pending} bekliyor", f"{running} işleniyor", f"{done} bitti"]
         if failed:
             parts.append(f"{failed} hata")
         if keep_awake.active:
@@ -571,10 +571,10 @@ class MainWindow(QMainWindow):
         if active:
             answer = QMessageBox.question(
                 self,
-                "Islem suruyor",
-                f"\"{active[0].title}\" hala isleniyor.\n\n"
-                "Simdi kapatirsaniz is kaldigi yerden devam etmek uzere kaydedilir. "
-                "Kapatilsin mi?",
+                "İşlem sürüyor",
+                f"\"{active[0].title}\" hâlâ işleniyor.\n\n"
+                "Şimdi kapatırsanız iş kaldığı yerden devam etmek üzere kaydedilir. "
+                "Kapatılsın mı?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No,
             )

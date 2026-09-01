@@ -36,19 +36,19 @@ JobStatus = Literal[
 STATUS_LABELS: dict[str, str] = {
     "pending": "Bekliyor",
     "awaiting_decision": "Karar bekliyor",
-    "running": "Isleniyor",
+    "running": "İşleniyor",
     "done": "Bitti",
     "failed": "Hata",
-    "cancelled": "Iptal",
+    "cancelled": "İptal",
 }
 
 STAGE_LABELS: dict[str, str] = {
-    "probe": "Inceleniyor",
-    "subtitles": "Altyazi aliniyor",
+    "probe": "İnceleniyor",
+    "subtitles": "Altyazı alınıyor",
     "download": "Ses indiriliyor",
-    "model": "Model hazirlaniyor",
-    "transcribe": "Yaziliyor",
-    "export": "Belge yaziliyor",
+    "model": "Model hazırlanıyor",
+    "transcribe": "Yazılıyor",
+    "export": "Belge yazılıyor",
 }
 
 # Yeniden baslatildiginda devam edebilecek durumlar.
@@ -346,7 +346,7 @@ class Database:
             job_id,
             status="awaiting_decision",
             manual_sub_langs=",".join(langs) or None,
-            message="Videoda hazir altyazi var, nasil devam edilsin?",
+            message="Videoda hazır altyazı var, nasıl devam edilsin?",
         )
 
     def decide_subtitles(self, job_id: str, use: bool) -> None:
