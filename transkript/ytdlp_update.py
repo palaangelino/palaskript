@@ -78,14 +78,14 @@ def _fetch_metadata() -> dict:
         with urllib.request.urlopen(request, timeout=_TIMEOUT) as response:
             return json.loads(response.read().decode("utf-8"))
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
-        raise UpdateError(f"Surum bilgisi alinamadi: {exc}") from exc
+        raise UpdateError(f"Sürüm bilgisi alınamadı: {exc}") from exc
 
 
 def latest_version() -> str:
     data = _fetch_metadata()
     version = (data.get("info") or {}).get("version")
     if not version:
-        raise UpdateError("PyPI yanitinda surum bulunamadi.")
+        raise UpdateError("PyPI yanıtında sürüm bulunamadı.")
     return str(version)
 
 
@@ -95,7 +95,7 @@ def _wheel_url(data: dict) -> str:
             entry.get("filename", "")
         ).endswith("-py3-none-any.whl"):
             return str(entry["url"])
-    raise UpdateError("Uygun yt-dlp paketi bulunamadi.")
+    raise UpdateError("Uygun yt-dlp paketi bulunamadı.")
 
 
 def update(progress: ProgressCallback | None = None) -> str:
@@ -105,7 +105,7 @@ def update(progress: ProgressCallback | None = None) -> str:
         if progress:
             progress(fraction, message)
 
-    report(0.0, "Surum bilgisi aliniyor")
+    report(0.0, "Sürüm bilgisi alınıyor")
     data = _fetch_metadata()
     version = str((data.get("info") or {}).get("version") or "?")
     url = _wheel_url(data)
@@ -133,21 +133,21 @@ def update(progress: ProgressCallback | None = None) -> str:
                         report(0.1 + 0.7 * (read / total), f"Indiriliyor {read // 1024} KB")
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         shutil.rmtree(staging, ignore_errors=True)
-        raise UpdateError(f"Indirme basarisiz: {exc}") from exc
+        raise UpdateError(f"İndirme başarısız: {exc}") from exc
 
-    report(0.85, "Paket aciliyor")
+    report(0.85, "Paket açılıyor")
     try:
         with zipfile.ZipFile(wheel_path) as archive:
             archive.extractall(staging)
     except (zipfile.BadZipFile, OSError) as exc:
         shutil.rmtree(staging, ignore_errors=True)
-        raise UpdateError(f"Paket acilamadi: {exc}") from exc
+        raise UpdateError(f"Paket açılamadı: {exc}") from exc
     finally:
         wheel_path.unlink(missing_ok=True)
 
     if not (staging / "yt_dlp" / "__init__.py").exists():
         shutil.rmtree(staging, ignore_errors=True)
-        raise UpdateError("Indirilen paket beklenen icerikte degil.")
+        raise UpdateError("İndirilen paket beklenen içerikte değil.")
 
     # Eskisini son anda degistir: yarim kalan bir guncelleme calisan kurulumu
     # bozmasin.
@@ -163,7 +163,7 @@ def update(progress: ProgressCallback | None = None) -> str:
     except OSError as exc:
         if backup.exists():
             backup.rename(target)
-        raise UpdateError(f"Guncelleme yerine konamadi: {exc}") from exc
+        raise UpdateError(f"Güncelleme yerine konamadı: {exc}") from exc
     shutil.rmtree(backup, ignore_errors=True)
 
     report(1.0, f"yt-dlp {version} kuruldu")

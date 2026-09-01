@@ -10,7 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QStandardItemModel
+from PySide6.QtGui import QPalette, QStandardItemModel
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -31,9 +31,15 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .. import catalog, ytdlp_update
+from .. import calibration, catalog, ytdlp_update
 from ..config import Settings
-from ..resources import MODEL_CATALOG, available_models, choose_profile, detect
+from ..resources import (
+    MODEL_CATALOG,
+    available_models,
+    choose_profile,
+    detect,
+    effective_ram_gb,
+)
 
 _LANGUAGES = [
     ("auto", "Otomatik (TR + EN karışık içerik için)"),
@@ -60,6 +66,24 @@ _SUB_POLICIES = [
     ("always", "Her zaman hazır altyazıyı kullan"),
     ("never", "Her zaman Whisper ile yaz"),
 ]
+
+
+def _hint(text: str) -> QLabel:
+    """Aciklama metni.
+
+    Rengi sabit vermiyoruz: sabit acik gri koyu temada sonuk, sabit koyu gri
+    acik temada sonuk kaliyor. Temanin kendi pasif metin rengi ikisinde de
+    dogru kontrasti veriyor.
+    """
+    label = QLabel(text)
+    label.setWordWrap(True)
+    palette = label.palette()
+    palette.setColor(
+        QPalette.ColorRole.WindowText,
+        palette.color(QPalette.ColorGroup.Disabled, QPalette.ColorRole.WindowText),
+    )
+    label.setPalette(palette)
+    return label
 
 
 def _combo(pairs: list[tuple[str, str]], current: str) -> QComboBox:
@@ -113,6 +137,17 @@ class SettingsDialog(QDialog):
         chosen = QLabel(f"Otomatik seçim: {profile.describe()}")
         chosen.setWordWrap(True)
         info_layout.addWidget(chosen)
+
+        measured = calibration.describe(profile.model, profile.batch_size)
+        if measured == "tahmin":
+            info_layout.addWidget(
+                _hint(
+                    "Bellek rakamları henüz tahmin. İlk işiniz bittiğinde bu makinedeki "
+                    "gerçek kullanım ölçülüp ayarlar buna göre düzeltilecek."
+                )
+            )
+        else:
+            info_layout.addWidget(_hint(f"Bu makinede {measured}"))
         outer.addWidget(info)
 
         form_box = QGroupBox("Model ve dil")
@@ -122,8 +157,15 @@ class SettingsDialog(QDialog):
         self.model_combo.addItem("Otomatik (donanıma göre seç)", "auto")
         gates = available_models(self._hw)
         for name, spec in MODEL_CATALOG.items():
-            ram = spec.ram_estimate_gb(profile.batch_size)
-            self.model_combo.addItem(f"{spec.label}  -  ~{ram:.1f} GB RAM", name)
+            ram = effective_ram_gb(name, profile.batch_size)
+            # Olculmus deger varsa onu gosteriyoruz; kullanici rakamin nereden
+            # geldigini bilsin diye ipucunda hangisi oldugu yaziyor.
+            source = calibration.describe(name, profile.batch_size)
+            marker = "" if source == "tahmin" else " *"
+            suffix = " (bu makine için önerilen)" if name == profile.model else ""
+            self.model_combo.addItem(
+                f"{spec.label}{suffix}  -  ~{ram:.1f} GB RAM{marker}", name
+            )
             reason = gates.get(name)
             if reason:
                 index = self.model_combo.count() - 1
@@ -143,18 +185,16 @@ class SettingsDialog(QDialog):
 
         self.model_warning = QLabel()
         self.model_warning.setWordWrap(True)
-        self.model_warning.setStyleSheet("color: #b00020;")
+        self.model_warning.setStyleSheet("color: #e5484d;")
         form.addRow("", self.model_warning)
 
         self.language_combo = _combo(_LANGUAGES, self._settings.language)
         form.addRow("Dil", self.language_combo)
 
-        hint = QLabel(
-            "Video tek dilliyse dili elle zorlamak hem daha hızlı hem daha doğru sonuç verir."
+        form.addRow(
+            "",
+            _hint("Video tek dilliyse dili elle zorlamak hem daha hızlı hem daha doğru sonuç verir."),
         )
-        hint.setWordWrap(True)
-        hint.setStyleSheet("color: #666;")
-        form.addRow("", hint)
 
         self.threads_spin = QSpinBox()
         self.threads_spin.setRange(0, max(1, self._hw.logical_cores))
@@ -269,22 +309,23 @@ class SettingsDialog(QDialog):
 
         self.subtitle_combo = _combo(_SUB_POLICIES, self._settings.manual_subtitle_policy)
         form.addRow("Hazır altyazı varsa", self.subtitle_combo)
-        note = QLabel(
-            "İnsan eliyle yazılmış altyazı 3 saatlik işlemi 2 saniyeye indirir. "
-            "Otomatik üretilmiş altyazılar Türkçede noktalama taşımadığı için kullanılmaz."
+        form.addRow(
+            "",
+            _hint(
+                "İnsan eliyle yazılmış altyazı 3 saatlik işlemi 2 saniyeye indirir. "
+                "Otomatik üretilmiş altyazılar Türkçede noktalama taşımadığı için kullanılmaz."
+            ),
         )
-        note.setWordWrap(True)
-        note.setStyleSheet("color: #666;")
-        form.addRow("", note)
 
         self.cookie_combo = _combo(_COOKIE_BROWSERS, self._settings.cookie_browser)
         form.addRow("Tarayıcı çerezi", self.cookie_combo)
-        cookie_note = QLabel(
-            "Yaş kısıtlı veya özel videolar için gerekir. Tarayıcının kapalı olması gerekebilir."
+        form.addRow(
+            "",
+            _hint(
+                "Yaş kısıtlı veya özel videolar için gerekir. "
+                "Tarayıcının kapalı olması gerekebilir."
+            ),
         )
-        cookie_note.setWordWrap(True)
-        cookie_note.setStyleSheet("color: #666;")
-        form.addRow("", cookie_note)
         outer.addWidget(yt_box)
 
         update_box = QGroupBox("yt-dlp")
@@ -292,16 +333,15 @@ class SettingsDialog(QDialog):
         self.ytdlp_label = QLabel()
         self.ytdlp_label.setWordWrap(True)
         update_layout.addWidget(self.ytdlp_label)
-        warning = QLabel(
-            "YouTube sık değiştiği için yt-dlp zamanla bozulur. Link indirmede hata "
-            "alıyorsanız önce burayı güncelleyin."
+        update_layout.addWidget(
+            _hint(
+                "YouTube sık değiştiği için yt-dlp zamanla bozulur. Link indirmede hata "
+                "alıyorsanız önce burayı güncelleyin."
+            )
         )
-        warning.setWordWrap(True)
-        warning.setStyleSheet("color: #666;")
-        update_layout.addWidget(warning)
 
         button_row = QHBoxLayout()
-        update_button = QPushButton("yt-dlp'yi guncelle")
+        update_button = QPushButton("yt-dlp'yi güncelle")
         update_button.clicked.connect(self._update_ytdlp)
         button_row.addWidget(update_button)
         button_row.addStretch(1)
@@ -354,7 +394,7 @@ class SettingsDialog(QDialog):
     def _refresh_ytdlp_label(self) -> None:
         version = ytdlp_update.installed_version() or "bilinmiyor"
         source = "kullanıcı dizini" if ytdlp_update.is_user_managed() else "uygulamayla geldi"
-        self.ytdlp_label.setText(f"Kurulu surum: {version} ({source})")
+        self.ytdlp_label.setText(f"Kurulu sürüm: {version} ({source})")
 
     def _update_ytdlp(self) -> None:
         dialog = QProgressDialog("yt-dlp güncelleniyor...", "Vazgeç", 0, 100, self)

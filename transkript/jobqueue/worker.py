@@ -81,6 +81,7 @@ def run_in_process(
                     "elapsed": result.elapsed_seconds,
                     "warnings": result.warnings,
                     "word_count": result.doc.word_count,
+                    "stats": result.stats,
                 },
             )
         )

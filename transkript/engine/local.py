@@ -60,7 +60,7 @@ class LocalWhisperEngine:
         try:
             from faster_whisper import BatchedInferencePipeline, WhisperModel
         except ImportError as exc:  # pragma: no cover
-            raise EngineError("faster-whisper kurulu degil.") from exc
+            raise EngineError("faster-whisper kurulu değil.") from exc
 
         self._profile = profile
         self._language = language
@@ -77,8 +77,8 @@ class LocalWhisperEngine:
             )
         except Exception as exc:  # noqa: BLE001
             raise EngineError(
-                f"Model yuklenemedi ({model_path}). Model dosyasi bozuk olabilir, "
-                f"ayarlardan silip tekrar indirin. Ayrinti: {exc}"
+                f"Model yüklenemedi ({model_path}). Model dosyası bozuk olabilir, "
+                f"ayarlardan silip tekrar indirin. Ayrıntı: {exc}"
             ) from exc
 
         try:
@@ -146,7 +146,7 @@ class LocalWhisperEngine:
         try:
             segments_iter, info = target(audio, **_filter_kwargs(target, kwargs))
         except Exception as exc:  # noqa: BLE001
-            raise EngineError(f"Transkripsiyon basarisiz: {exc}") from exc
+            raise EngineError(f"Transkripsiyon başarısız: {exc}") from exc
 
         detected = getattr(info, "language", None)
         self._note_language(detected)

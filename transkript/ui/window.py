@@ -120,7 +120,7 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(10, 8, 10, 8)
         layout.setSpacing(8)
 
-        self.clipboard_bar = self._banner("#e8f0fe", "#1a56b8")
+        self.clipboard_bar = self._banner("#e8f0fe", "#1a56b8", "#123a7a")
         self.clipboard_label = QLabel()
         self.clipboard_add = QPushButton("Kuyruğa ekle")
         self.clipboard_dismiss = QPushButton("Yoksay")
@@ -134,7 +134,7 @@ class MainWindow(QMainWindow):
         self.clipboard_bar.hide()
         layout.addWidget(self.clipboard_bar)
 
-        self.decision_bar = self._banner("#fff4e5", "#8a5300")
+        self.decision_bar = self._banner("#fff4e5", "#8a5300", "#6b4000")
         self.decision_label = QLabel()
         self.decision_subs = QPushButton("Hazır altyazıyı kullan")
         self.decision_whisper = QPushButton("Whisper ile yaz")
@@ -171,10 +171,24 @@ class MainWindow(QMainWindow):
         self.statusBar().addPermanentWidget(self.profile_label)
         self._update_profile_label()
 
-    def _banner(self, background: str, border: str) -> QWidget:
+    def _banner(self, background: str, border: str, foreground: str) -> QWidget:
+        """Bilgilendirme cubugu.
+
+        Zemin ve metin rengi BIRLIKTE sabitleniyor. Yalnizca zemini
+        sabitlemek koyu temada cubugu okunmaz yapiyor: tema kendi acik gri
+        metnini acik zemine yaziyor.
+        """
         bar = QWidget()
         bar.setStyleSheet(
-            f"background-color: {background}; border: 1px solid {border}; border-radius: 4px;"
+            f"QWidget {{ background-color: {background};"
+            f" border: 1px solid {border}; border-radius: 4px; }}"
+            f" QLabel {{ color: {foreground}; border: none; background: transparent; }}"
+            # Butonlar da elle boyanmali: aksi halde acik zemini miras alip
+            # temanin acik gri metnini kullaniyorlar ve yazi kayboluyor.
+            f" QPushButton {{ color: {foreground}; background-color: rgba(255,255,255,0.75);"
+            f" border: 1px solid {border}; border-radius: 3px; padding: 4px 10px; }}"
+            f" QPushButton:hover {{ background-color: rgba(255,255,255,1.0); }}"
+            f" QPushButton:pressed {{ background-color: rgba(0,0,0,0.06); }}"
         )
         return bar
 

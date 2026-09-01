@@ -5,9 +5,11 @@ donanimi olcup hangi modelin, hangi yigin boyutunun ve hangi pencere boyunun
 guvenli oldugunu belirliyor; is sirasinda da bos bellegi izleyip gerekirse
 yigini kucultuyor.
 
-RAM tahminleri (MODEL_CATALOG icindeki weights_gb / act_per_batch_gb) su an
-olcume degil hesaba dayaniyor. scripts/benchmark.py bunlari gercek tepe RSS ile
-degistirmek icin var; 8 GB hedefi tahminle birakilmamali.
+MODEL_CATALOG icindeki RAM rakamlari hesapla uretilmis TAHMIN ve her makinede
+tutmuyor. Bu yuzden sadece baslangic degeri: bu makinede bir is tamamlandiginda
+gercek tepe bellek olculup kaydediliyor ve sonraki kararlar o olcume gore
+veriliyor (bkz. calibration.py). scripts/benchmark.py ise ayni olcumu birden
+fazla model/yigin icin toplu almak isteyenler icin.
 """
 
 from __future__ import annotations
@@ -46,7 +48,7 @@ class ModelSpec:
 MODEL_CATALOG: dict[str, ModelSpec] = {
     "small": ModelSpec(
         name="small",
-        label="Small (hızlı, Türkçe kalitesi zayıf)",
+        label="Small (hızlı, Türkçe zayıf)",
         download_gb=0.25,
         weights_gb=0.26,
         act_per_batch_gb=0.10,
@@ -64,7 +66,7 @@ MODEL_CATALOG: dict[str, ModelSpec] = {
     ),
     "large-v3-turbo": ModelSpec(
         name="large-v3-turbo",
-        label="Large v3 Turbo (önerilen)",
+        label="Large v3 Turbo",
         download_gb=1.6,
         weights_gb=0.83,
         act_per_batch_gb=0.26,
@@ -214,10 +216,11 @@ def choose_profile(
     if spec is None:
         raise ValueError(f"Bilinmeyen model: {model}")
 
-    # Elle secilen model katman varsayilanindan agirsa yigini butceye sigacak
-    # sekilde kucult. Kullanici large-v3'u zorlayabiliyor ama yigin buna uyar.
+    # Yigini butceye sigacak sekilde kucult. Bu makinede daha once olculmus bir
+    # deger varsa onu kullaniyoruz: katalog tahmini her makinede tutmuyor ve
+    # olcum, kullanicinin ilk isinden bedavaya geliyor (bkz. calibration.py).
     budget = usable_budget_gb(hw)
-    while batch > 1 and spec.ram_estimate_gb(batch) > budget:
+    while batch > 1 and effective_ram_gb(spec.name, batch) > budget:
         batch //= 2
 
     threads = threads_override or hw.physical_cores
@@ -226,8 +229,23 @@ def choose_profile(
     return Profile(model=model, batch_size=batch, window_seconds=window, cpu_threads=threads)
 
 
+def effective_ram_gb(model: str, batch_size: int) -> float:
+    """Bu makine icin gecerli bellek beklentisi.
+
+    Bu makinede daha once olculmusse olcum kullaniliyor, yoksa katalogtaki
+    tahmine duseluyor. Olcum tahminden gudumlu: tahmin her makinede tutmuyor
+    ve 8 GB'lik bir makinede yanlis tahmin takas bellegi demek.
+    """
+    from . import calibration
+
+    measured = calibration.measured_ram_gb(model, batch_size)
+    if measured is not None:
+        return measured
+    return MODEL_CATALOG[model].ram_estimate_gb(batch_size)
+
+
 def fits_in_memory(spec: ModelSpec, batch_size: int, hw: HardwareInfo) -> bool:
-    return spec.ram_estimate_gb(batch_size) <= usable_budget_gb(hw)
+    return effective_ram_gb(spec.name, batch_size) <= usable_budget_gb(hw)
 
 
 class InsufficientDiskError(RuntimeError):

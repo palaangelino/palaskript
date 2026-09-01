@@ -65,6 +65,9 @@ class JobResult:
     from_subtitles: bool = False
     elapsed_seconds: float = 0.0
     warnings: list[str] = field(default_factory=list)
+    # Kalibrasyon icin: bu isin transkripsiyon asamasinin olcumleri.
+    # Indirme ve disa aktarim haric, yalnizca yazma suresi.
+    stats: dict = field(default_factory=dict)
 
 
 # Pencere ici canli ilerleme bildirimleri arasindaki en kisa sure.
@@ -137,6 +140,7 @@ def run_job(
     model_label = ""
     languages: list[str] = []
     duration = source.duration
+    measured_stats: dict = {}
 
     # -------------------------------------------- 2. hazir altyazi kisayolu
     if use_subtitles and source.kind == "youtube":
@@ -190,7 +194,9 @@ def run_job(
         )
         check_cancel()
 
+        stats: dict = {"model": profile.model, "batch_size": profile.batch_size}
         doc_segments, languages = _transcribe(
+            stats=stats,
             audio_path=Path(audio_path),
             model_dir=model_dir,
             profile=profile,
@@ -203,6 +209,7 @@ def run_job(
             warnings=warnings,
         )
         model_label = f"faster-whisper {profile.model} (int8, CPU)"
+        measured_stats = stats
 
     # ------------------------------------------------------- 4. belgelestir
     report("export", 0.0, "Belge hazırlanıyor")
@@ -234,6 +241,7 @@ def run_job(
         from_subtitles=from_subtitles,
         elapsed_seconds=time.monotonic() - started,
         warnings=warnings,
+        stats=measured_stats,
     )
 
     if settings.export_pdf:
@@ -276,6 +284,7 @@ def run_job(
 
 def _transcribe(
     *,
+    stats: dict,
     audio_path: Path,
     model_dir: Path,
     profile: Profile,
@@ -389,6 +398,12 @@ def _transcribe(
                 announce(processed)
     finally:
         engine.close()
+
+    # Kalibrasyon icin: yalnizca YAZILAN ses ve o ise harcanan sure. Devam
+    # ettirilen bir iste bastaki kisim tekrar yazilmadigi icin start_at
+    # dusuluyor, aksi halde hiz oldugundan yuksek gorunurdu.
+    stats["audio_seconds"] = max(0.0, processed - start_at)
+    stats["elapsed_seconds"] = time.monotonic() - wall_start
 
     return assembler.result(), engine.detected_languages
 

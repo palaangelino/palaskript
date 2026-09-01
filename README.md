@@ -67,6 +67,21 @@ Uygulama, kuyruk calisirken bilgisayarin uyumasini engelliyor ve isci sureci
 dusuk oncelikte calistiriyor: gece boyu suren bir is sirasinda bilgisayar
 kullanilabilir kaliyor.
 
+### Kendini olcuyor
+
+Kurulum sirasinda olcum yapilmiyor: olcum icin modelin inmis olmasi gerekir
+(1.6 GB) ve kurulumu on dakikaya cikarmak kotu bir takas olurdu.
+
+Bunun yerine olcum ZATEN YAPILAN ISTEN aliniyor. Ilk isiniz bittiginde bu
+makinenin gercek tepe bellegi ve hizi kaydediliyor
+(`%APPDATA%\Transkript\calibration.json`), sonraki isler tahmin yerine bu
+degerle boyutlaniyor. Model beklenenden agir ciktiysa yigin boyutu
+kendiliginden kuculuyor. Hicbir ek bekleme yok.
+
+Ilk acilista bir kez donanim ozeti gosteriliyor: ne tespit edildigi, hangi
+modelin secildigi ve ne kadar indirilecegi. Buradan model degistirilebiliyor ve
+model istege bagli olarak o anda indirilebiliyor.
+
 ---
 
 ## Gelistirme

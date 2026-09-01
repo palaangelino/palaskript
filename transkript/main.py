@@ -62,6 +62,7 @@ def main() -> int:
     from PySide6.QtGui import QIcon
     from PySide6.QtWidgets import QApplication
 
+    from .ui.first_run import maybe_run
     from .ui.window import MainWindow
 
     QApplication.setAttribute(Qt.ApplicationAttribute.AA_DontUseNativeMenuBar, False)
@@ -76,6 +77,11 @@ def main() -> int:
         app.setWindowIcon(QIcon(str(icon_path)))
 
     sys.excepthook = _excepthook
+
+    # Ilk acilis: donanimi gosterip modeli sectiriyoruz. Bu is kurulum
+    # sirasinda yapilamazdi, model indirmek gerekiyor ve kurulumu on
+    # dakikaya cikarirdi.
+    maybe_run()
 
     window = MainWindow()
     window.show()

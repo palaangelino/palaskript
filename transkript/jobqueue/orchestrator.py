@@ -19,7 +19,9 @@ import threading
 from collections.abc import Callable
 from pathlib import Path
 
-from .. import paths
+import psutil
+
+from .. import calibration, paths
 from ..config import Settings
 from ..power import keep_awake
 from ..source import ytdlp_source
@@ -231,8 +233,22 @@ class Orchestrator:
         self._start_prefetch(job.id)
 
         outcome: tuple[str, object] | None = None
+        # Isci surecin tepe bellegi. Kalibrasyon icin olculuyor: kurulum
+        # sirasinda ayri bir olcum kosturmak yerine zaten yapilan isten
+        # aliyoruz (bkz. calibration.py).
+        peak_rss_gb = 0.0
+        try:
+            monitor = psutil.Process(process.pid)
+        except psutil.Error:
+            monitor = None
+
         try:
             while True:
+                if monitor is not None:
+                    try:
+                        peak_rss_gb = max(peak_rss_gb, monitor.memory_info().rss / 1024**3)
+                    except psutil.Error:
+                        monitor = None
                 try:
                     message = progress_queue.get(timeout=_POLL_INTERVAL)
                 except queue_mod.Empty:
@@ -268,7 +284,7 @@ class Orchestrator:
                 self._process = None
             self._current_job_id = None
 
-        self._finish(job, outcome, cancelled=cancel_event.is_set())
+        self._finish(job, outcome, cancelled=cancel_event.is_set(), peak_rss_gb=peak_rss_gb)
         self._changed()
 
     def _finish(
@@ -277,6 +293,7 @@ class Orchestrator:
         outcome: tuple[str, object] | None,
         *,
         cancelled: bool,
+        peak_rss_gb: float = 0.0,
     ) -> None:
         if outcome is None:
             if cancelled:
@@ -298,6 +315,7 @@ class Orchestrator:
             self.db.mark_failed(job.id, str(data))
         elif kind == "done":
             assert isinstance(data, dict)
+            self._record_calibration(data.get("stats") or {}, peak_rss_gb)
             warnings = data.get("warnings") or []
             self.db.mark_done(
                 job.id,
@@ -307,6 +325,27 @@ class Orchestrator:
                 message="; ".join(warnings) if warnings else None,
             )
             self._notify("Transkript hazır", job.title)
+
+    def _record_calibration(self, stats: dict, peak_rss_gb: float) -> None:
+        """Isin olcumlerini kaydet.
+
+        Bir sonraki is bu makinede gercekten olculmus bellek degeriyle
+        boyutlaniyor, katalogtaki tahminle degil.
+        """
+        model = stats.get("model")
+        batch = stats.get("batch_size")
+        if not model or not batch:
+            return
+        try:
+            calibration.record(
+                model=str(model),
+                batch_size=int(batch),
+                peak_rss_gb=peak_rss_gb,
+                audio_seconds=float(stats.get("audio_seconds") or 0.0),
+                elapsed_seconds=float(stats.get("elapsed_seconds") or 0.0),
+            )
+        except (OSError, ValueError, TypeError):
+            log.info("Kalibrasyon kaydedilemedi", exc_info=True)
 
     # ----------------------------------------------------------- on indirme
 
