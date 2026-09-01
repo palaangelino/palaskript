@@ -157,11 +157,15 @@ def main() -> int:
     version = app_version()
     run([str(iscc), f"/DAppVersion={version}", str(ROOT / "packaging" / "installer.iss")])
 
-    installers = sorted(DIST.glob("Palaskript-Setup-*.exe"))
+    installers = sorted(p for p in DIST.glob("Palaskript-Setup-*.exe") if p.suffix == ".exe")
     if installers:
         installer = installers[-1]
         size = installer.stat().st_size / 1024**2
+        # Ozet dosyasi yayin icin ZORUNLU: uygulama indirdigi kurulumu bununla
+        # dogruluyor ve yayin is akisi dosyayi bulamazsa duruyor.
+        checksum = write_checksum(installer)
         print(f"\nKurulum dosyasi: {installer}  ({size:.0f} MB)")
+        print(f"Sagalama toplami: {checksum.name}")
         print(
             "\nNot: imzasiz oldugu icin ilk calistirmada SmartScreen uyarisi cikar.\n"
             "'Daha fazla bilgi' > 'Yine de calistir' ile gecilir."
