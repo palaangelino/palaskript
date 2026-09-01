@@ -29,13 +29,15 @@ Link yapistir, kuyruga at, PDF al.
 
 ## Kurulum (kullanici)
 
-`dist/Transkript-Setup-1.0.0.exe` dosyasini calistirin.
+`dist/Transkript-Setup-1.0.0.exe` dosyasini calistirin (96 MB, kuruldugunda
+diskte ~350 MB). Yonetici hakki istemiyor, kullanici klasorune kuruluyor.
 
 Imzasiz oldugu icin Windows SmartScreen uyarisi cikar:
 **Daha fazla bilgi > Yine de calistir**.
 
 Ilk baslatmada Whisper modeli iniyor (varsayilan `large-v3-turbo`, ~1.6 GB).
 Model `%LOCALAPPDATA%\Transkript\models` altinda kaliyor, bir kez iniyor.
+Modeller kurulum dosyasina BILEREK dahil edilmedi: `large-v3` tek basina 3 GB.
 
 ---
 
@@ -104,8 +106,17 @@ Kurulum dosyasini uret:
 .venv\Scripts\python scripts\build.py
 ```
 
+Uretilen ciktilar:
+
+| Cikti | Boyut |
+|---|---|
+| `dist/Transkript/` (calisir paket) | ~350 MB |
+| `dist/Transkript-Setup-1.0.0.exe` | ~96 MB |
+
+PyInstaller adimi bu makinede ~4.5 dakika suruyor.
+
 Inno Setup kurulu degilse sadece `dist/Transkript/` klasoru uretilir, uygulama
-yine calisir. Kurulum dosyasi icin: https://jrsoftware.org/isdl.php
+yine calisir. Kurmak icin: `winget install JRSoftware.InnoSetup`
 
 ---
 

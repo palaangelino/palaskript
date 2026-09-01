@@ -23,8 +23,10 @@ ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
 BUILD = ROOT / "build"
 
-# Inno Setup derleyicisinin standart konumlari.
+# Inno Setup derleyicisinin olasi konumlari. winget kullanici kapsamina
+# kuruyor (LOCALAPPDATA), elle kurulum ise Program Files'a; ikisine de bakiyoruz.
 ISCC_CANDIDATES = [
+    Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Inno Setup 6" / "ISCC.exe",
     Path(r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe"),
     Path(r"C:\Program Files\Inno Setup 6\ISCC.exe"),
 ]
