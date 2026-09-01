@@ -1,6 +1,6 @@
 """Faz 0: model, is parcacigi ve yigin boyutu olcumu.
 
-Neden ilk is bu: transkript/resources.py icindeki RAM tahminleri su an hesaba
+Neden ilk is bu: palaskript/resources.py icindeki RAM tahminleri su an hesaba
 dayaniyor, olcume degil. 8 GB'lik makinelerde hangi modelin sigacagini tahminle
 belirlemek, o makinelerde takas bellegine dusmek demek. Bu arac gercek sayilari
 uretiyor ve MODEL_CATALOG'daki degerler bunlara gore duzeltiliyor.
@@ -35,11 +35,11 @@ import psutil
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from transkript import catalog, paths  # noqa: E402
-from transkript.audio import SAMPLE_RATE, iter_windows, probe_duration  # noqa: E402
-from transkript.chapters import format_timestamp  # noqa: E402
-from transkript.resources import MODEL_CATALOG, Profile, detect  # noqa: E402
-from transkript.source import resolver, ytdlp_source  # noqa: E402
+from palaskript import catalog, paths  # noqa: E402
+from palaskript.audio import SAMPLE_RATE, iter_windows, probe_duration  # noqa: E402
+from palaskript.chapters import format_timestamp  # noqa: E402
+from palaskript.resources import MODEL_CATALOG, Profile, detect  # noqa: E402
+from palaskript.source import resolver, ytdlp_source  # noqa: E402
 
 DEFAULT_MODELS = ["small", "medium", "large-v3-turbo"]
 DEFAULT_BATCHES = [1, 4, 8]
@@ -130,7 +130,7 @@ def prepare_slice(raw_input: str, slice_minutes: float, out_path: Path) -> Path:
 
 def run_single(wav: Path, model: str, threads: int, batch: int, vad: bool) -> dict:
     """Alt surecte tek bir yapilandirmayi calistir (bu fonksiyon cocukta calisir)."""
-    from transkript.engine.local import LocalWhisperEngine
+    from palaskript.engine.local import LocalWhisperEngine
 
     model_dir = catalog.ensure_model(model)
     profile = Profile(model=model, batch_size=batch, window_seconds=600, cpu_threads=threads)
@@ -251,7 +251,7 @@ def write_report(results: list[Result], path: Path, hw, slice_minutes: float) ->
         "",
         "## MODEL_CATALOG icin onerilen degerler",
         "",
-        "Asagidaki tepe RSS olcumleri transkript/resources.py icindeki",
+        "Asagidaki tepe RSS olcumleri palaskript/resources.py icindeki",
         "`weights_gb` / `act_per_batch_gb` degerlerini duzeltmek icin kullanilir.",
         "",
         "| Model | Yigin | Olculen tepe RAM | Kataloktaki tahmin |",

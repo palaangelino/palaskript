@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import pytest
 
-from transkript import calibration
-from transkript.resources import MODEL_CATALOG, HardwareInfo, choose_profile, effective_ram_gb
+from palaskript import calibration
+from palaskript.resources import MODEL_CATALOG, HardwareInfo, choose_profile, effective_ram_gb
 
 
 @pytest.fixture(autouse=True)

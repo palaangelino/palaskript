@@ -155,7 +155,7 @@ def run_job(
             model_label = f"YouTube altyazısı ({lang})"
             report("subtitles", 1.0, f"Altyazı alındı ({len(doc_segments)} satır)")
         else:
-            warnings.append("Hazır altyazı bulunamadı, Whisper ile yazıldı.")
+            warnings.append("Hazır altyazı bulunamadı, ses yeniden yazıldı.")
 
     # --------------------------------------------------- 3. transkripsiyon
     if not from_subtitles:

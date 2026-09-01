@@ -1,7 +1,7 @@
 ; Transkript kurulum betigi (Inno Setup 6)
 ;
 ; Once PyInstaller calistirilmali:
-;     pyinstaller packaging/transkript.spec --noconfirm
+;     pyinstaller packaging/palaskript.spec --noconfirm
 ; Sonra:
 ;     iscc packaging/installer.iss
 ;
@@ -13,7 +13,7 @@
 
 #define AppName "Transkript"
 #define AppVersion "1.0.0"
-#define AppExeName "Transkript.exe"
+#define AppExeName "Palaskript.exe"
 #define AppPublisher "Transkript"
 
 [Setup]

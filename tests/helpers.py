@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from transkript.audio import SAMPLE_RATE
-from transkript.datatypes import Segment
+from palaskript.audio import SAMPLE_RATE
+from palaskript.datatypes import Segment
 
 
 def seg(start: float, end: float, text: str, language: str | None = None) -> Segment:

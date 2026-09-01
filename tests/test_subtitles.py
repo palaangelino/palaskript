@@ -6,7 +6,7 @@ ayristiricinin YouTube'un gercek cikti bicimlerini dogru ele almasi onemli.
 
 from __future__ import annotations
 
-from transkript.source import subtitles
+from palaskript.source import subtitles
 
 VTT = """WEBVTT
 Kind: captions

@@ -221,7 +221,7 @@ class Orchestrator:
         process = self._ctx.Process(
             target=run_in_process,
             args=(payload, progress_queue, cancel_event),
-            name=f"transkript-job-{job.id}",
+            name=f"palaskript-job-{job.id}",
             daemon=False,
         )
 

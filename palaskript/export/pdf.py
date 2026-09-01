@@ -304,9 +304,9 @@ def write(doc: TranscriptDoc, path: Path, settings: Settings) -> Path:
         str(path),
         header_text=doc.source.title,
         title=doc.source.title,
-        author=doc.source.channel or "Transkript",
+        author=doc.source.channel or "Palaskript",
         subject="Video transkripti",
-        creator="Transkript",
+        creator="Palaskript",
     )
 
     story: list = [NextPageTemplate("body")]

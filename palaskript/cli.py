@@ -5,8 +5,8 @@ ayrica Faz 1'in teslim ediligi nokta: PDF akisinin dogrulugu buradan
 kontrol edilebiliyor.
 
 Ornek:
-    transkript-cli "https://www.youtube.com/watch?v=..." --lang tr
-    transkript-cli "C:\\videolar\\sunum.mp4" --model medium --out C:\\ciktilar
+    palaskript-cli "https://www.youtube.com/watch?v=..." --lang tr
+    palaskript-cli "C:\\videolar\\sunum.mp4" --model medium --out C:\\ciktilar
 """
 
 from __future__ import annotations
@@ -24,11 +24,11 @@ from .source import resolver
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="transkript-cli",
+        prog="palaskript-cli",
         description="YouTube linkinden veya yerel videodan PDF transkript üretir.",
     )
     parser.add_argument("input", nargs="?", help="YouTube adresi veya dosya yolu")
-    parser.add_argument("--model", choices=sorted(MODEL_CATALOG), help="Whisper modeli")
+    parser.add_argument("--model", choices=sorted(MODEL_CATALOG), help="Kullanilacak model")
     parser.add_argument(
         "--lang",
         choices=["auto", "tr", "en"],
@@ -39,7 +39,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--subs",
         action="store_true",
-        help="Videoda insan eliyle yazılmış altyazı varsa Whisper yerine onu kullan",
+        help="Videoda insan eliyle yazılmış altyazı varsa yeniden yazmak yerine onu kullan",
     )
     parser.add_argument("--no-pdf", action="store_true", help="PDF üretme")
     parser.add_argument("--no-txt", action="store_true", help="TXT üretme")
@@ -53,7 +53,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--info", action="store_true", help="Donanım profilini yazdır ve çık"
     )
-    parser.add_argument("--version", action="version", version=f"Transkript {__version__}")
+    parser.add_argument("--version", action="version", version=f"Palaskript {__version__}")
     return parser
 
 

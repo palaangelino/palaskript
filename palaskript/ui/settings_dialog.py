@@ -64,7 +64,7 @@ _COOKIE_BROWSERS = [
 _SUB_POLICIES = [
     ("ask", "Sor (önerilen)"),
     ("always", "Her zaman hazır altyazıyı kullan"),
-    ("never", "Her zaman Whisper ile yaz"),
+    ("never", "Her zaman Palaskript ile yaz"),
 ]
 
 

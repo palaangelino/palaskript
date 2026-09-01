@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from transkript.audio import SAMPLE_RATE
+from palaskript.audio import SAMPLE_RATE
 
 
 @pytest.fixture

@@ -20,8 +20,9 @@ makineden makineye degisiyor ve tasarim onunla birlikte degisiyor.
 
 from __future__ import annotations
 
-from PySide6.QtGui import QColor, QFont, QFontDatabase, QPalette
-from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QFont, QFontDatabase, QPalette, QPixmap
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QLabel, QWidget
 
 from .. import paths
 
@@ -545,6 +546,44 @@ def banner_style(*, tone: str = "accent") -> str:
         f' QPushButton[primary="true"]:pressed {{ background-color: {ACCENT_PRESSED};'
         f" border-color: {ACCENT_PRESSED}; }}"
     )
+
+
+def heart_label(colour: str = "accent") -> QLabel:
+    """Altbilgideki kalp.
+
+    Metnin icine karakter olarak yazmiyoruz: paketlenmis font U+2665 tasimiyor
+    ve Qt o karakter icin sistem emoji fontuna dusuyor, yani araya renkli bir
+    emoji giriyor. Kucuk bir gorsel hem garanti hem palete uygun.
+    """
+    label = QLabel()
+    name = "heart-accent.png" if colour == "accent" else "heart-ink.png"
+    path = paths.assets_dir() / name
+    if path.exists():
+        pixmap = QPixmap(str(path))
+        label.setPixmap(pixmap)
+    label.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+    label.setStyleSheet("background: transparent; border: none;")
+    return label
+
+
+def credit_widget() -> QWidget:
+    """"Pala tarafindan (kalp) ile yapildi" satiri."""
+    container = QWidget()
+    container.setStyleSheet("background: transparent;")
+    row = QHBoxLayout(container)
+    row.setContentsMargins(0, 0, 0, 0)
+    row.setSpacing(5)
+
+    before = QLabel("Pala tarafından")
+    before.setProperty("muted", True)
+    row.addWidget(before)
+
+    row.addWidget(heart_label())
+
+    after = QLabel("ile yapıldı")
+    after.setProperty("muted", True)
+    row.addWidget(after)
+    return container
 
 
 def apply(app: QApplication) -> None:

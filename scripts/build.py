@@ -64,7 +64,7 @@ def directory_size_mb(path: Path) -> float:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Transkript kurulum dosyasini uret")
+    parser = argparse.ArgumentParser(description="Palaskript kurulum dosyasini uret")
     parser.add_argument("--no-installer", action="store_true", help="Sadece PyInstaller calistir")
     parser.add_argument("--skip-checks", action="store_true", help="ruff ve pytest'i atla")
     parser.add_argument("--clean", action="store_true", help="Once build/ ve dist/ sil")
@@ -79,7 +79,7 @@ def main() -> int:
                 shutil.rmtree(path, ignore_errors=True)
 
     if not args.skip_checks:
-        run([python, "-m", "ruff", "check", "transkript", "tests", "scripts"])
+        run([python, "-m", "ruff", "check", "palaskript", "tests", "scripts"])
         run([python, "-m", "pytest", "tests", "-q"])
 
     icon = ROOT / "assets" / "icon.ico"
@@ -93,7 +93,7 @@ def main() -> int:
             python,
             "-m",
             "PyInstaller",
-            str(ROOT / "packaging" / "transkript.spec"),
+            str(ROOT / "packaging" / "palaskript.spec"),
             "--noconfirm",
             "--distpath",
             str(DIST),
@@ -102,8 +102,8 @@ def main() -> int:
         ]
     )
 
-    app_dir = DIST / "Transkript"
-    exe = app_dir / "Transkript.exe"
+    app_dir = DIST / "Palaskript"
+    exe = app_dir / "Palaskript.exe"
     if not exe.exists():
         raise SystemExit(f"Beklenen cikti olusmadi: {exe}")
 
@@ -125,7 +125,7 @@ def main() -> int:
 
     run([str(iscc), str(ROOT / "packaging" / "installer.iss")])
 
-    installers = sorted(DIST.glob("Transkript-Setup-*.exe"))
+    installers = sorted(DIST.glob("Palaskript-Setup-*.exe"))
     if installers:
         installer = installers[-1]
         size = installer.stat().st_size / 1024**2

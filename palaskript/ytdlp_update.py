@@ -25,7 +25,7 @@ from . import paths
 
 PYPI_URL = "https://pypi.org/pypi/yt-dlp/json"
 _TIMEOUT = 30
-_USER_AGENT = "Transkript/1.0 (+yt-dlp updater)"
+_USER_AGENT = "Palaskript/1.0 (+yt-dlp updater)"
 
 ProgressCallback = Callable[[float, str], None]
 

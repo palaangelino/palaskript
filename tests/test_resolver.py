@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 from helpers import speech_like
 
-from transkript.source import file_source, resolver
+from palaskript.source import file_source, resolver
 
 
 class TestParseInputLines:

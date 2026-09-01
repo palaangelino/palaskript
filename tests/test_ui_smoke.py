@@ -21,8 +21,8 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
-from transkript.config import Settings  # noqa: E402
-from transkript.datatypes import SourceInfo  # noqa: E402
+from palaskript.config import Settings  # noqa: E402
+from palaskript.datatypes import SourceInfo  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -41,11 +41,11 @@ def isolated_paths(tmp_path, monkeypatch):
 
 class TestMainWindow:
     def test_constructs_and_closes(self, app, isolated_paths):
-        from transkript.ui.window import MainWindow
+        from palaskript.ui.window import MainWindow
 
         window = MainWindow()
         try:
-            assert window.windowTitle().startswith("Transkript")
+            assert window.windowTitle().startswith("Palaskript")
             # Bos kuyrukta tablo bos ama sutunlar kurulu olmali.
             assert window.table.columnCount() == 5
             assert window.table.rowCount() == 0
@@ -58,7 +58,7 @@ class TestMainWindow:
             window.deleteLater()
 
     def test_refresh_renders_queued_jobs(self, app, isolated_paths):
-        from transkript.ui.window import MainWindow
+        from palaskript.ui.window import MainWindow
 
         window = MainWindow()
         try:
@@ -86,7 +86,7 @@ class TestMainWindow:
             window.deleteLater()
 
     def test_decision_banner_appears_for_awaiting_jobs(self, app, isolated_paths):
-        from transkript.ui.window import MainWindow
+        from palaskript.ui.window import MainWindow
 
         window = MainWindow()
         try:
@@ -120,8 +120,8 @@ class TestMainWindow:
 
 class TestDialogs:
     def test_add_dialog_parses_mixed_input(self, app, isolated_paths):
-        from transkript.source import resolver
-        from transkript.ui.add_dialog import AddDialog
+        from palaskript.source import resolver
+        from palaskript.ui.add_dialog import AddDialog
 
         dialog = AddDialog(initial="https://a.com/1\nC:\\videolar\\a.mp4")
         try:
@@ -131,7 +131,7 @@ class TestDialogs:
             dialog.deleteLater()
 
     def test_settings_dialog_round_trips_values(self, app, isolated_paths):
-        from transkript.ui.settings_dialog import SettingsDialog
+        from palaskript.ui.settings_dialog import SettingsDialog
 
         settings = Settings()
         settings.language = "tr"
@@ -149,8 +149,8 @@ class TestDialogs:
 
     def test_settings_dialog_disables_models_that_do_not_fit(self, app, isolated_paths, monkeypatch):
         """8 GB'lik makinede large-v3 secilemez olmali."""
-        from transkript.resources import HardwareInfo
-        from transkript.ui import settings_dialog as module
+        from palaskript.resources import HardwareInfo
+        from palaskript.ui import settings_dialog as module
 
         monkeypatch.setattr(
             module,

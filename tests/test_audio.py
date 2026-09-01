@@ -13,7 +13,7 @@ import numpy as np
 import pytest
 from helpers import silence, speech_like
 
-from transkript.audio import (
+from palaskript.audio import (
     SAMPLE_RATE,
     AudioDecodeError,
     find_silence_cut,

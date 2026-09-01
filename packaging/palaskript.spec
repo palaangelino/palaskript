@@ -8,7 +8,7 @@
 # %LOCALAPPDATA%\Transkript\models altina iniyor.
 #
 # Calistirma:
-#     pyinstaller packaging/transkript.spec --noconfirm
+#     pyinstaller packaging/palaskript.spec --noconfirm
 
 from pathlib import Path
 
@@ -25,7 +25,7 @@ datas = [
     (str(ROOT / "assets" / "check-muted.png"), "assets"),
 ]
 binaries = []
-hiddenimports = collect_submodules("transkript")
+hiddenimports = collect_submodules("palaskript")
 
 # Bu paketler veri dosyalari ve yerel kutuphaneler tasiyor; PyInstaller'in
 # otomatik analizi hepsini bulamiyor.
@@ -87,7 +87,7 @@ excludes = excluded_qt + [
 ]
 
 a = Analysis(
-    [str(ROOT / "run_transkript.py")],
+    [str(ROOT / "run_palaskript.py")],
     pathex=[str(ROOT)],
     binaries=binaries,
     datas=datas,
@@ -107,7 +107,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="Transkript",
+    name="Palaskript",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -129,5 +129,5 @@ coll = COLLECT(
     strip=False,
     upx=False,
     upx_exclude=[],
-    name="Transkript",
+    name="Palaskript",
 )

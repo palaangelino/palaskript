@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from helpers import seg
 
-from transkript.datatypes import Segment
-from transkript.segments import (
+from palaskript.datatypes import Segment
+from palaskript.segments import (
     TranscriptAssembler,
     build_paragraphs,
     ends_sentence,

@@ -1,5 +1,5 @@
 [project]
-name = "transkript"
+name = "palaskript"
 version = "1.0.0"
 description = "YouTube linkinden veya yerel videodan PDF transkript ureten offline masaustu uygulamasi"
 requires-python = ">=3.10"
@@ -24,20 +24,20 @@ dev = [
 ]
 
 [project.scripts]
-transkript-cli = "transkript.cli:main"
+palaskript-cli = "palaskript.cli:main"
 
 [project.gui-scripts]
-transkript = "transkript.main:main"
+palaskript = "palaskript.main:main"
 
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["transkript*"]
+include = ["palaskript*"]
 
 [tool.setuptools.package-data]
-transkript = ["../assets/fonts/*.ttf", "../assets/*.ico"]
+palaskript = ["../assets/fonts/*.ttf", "../assets/*.ico"]
 
 [tool.ruff]
 line-length = 100

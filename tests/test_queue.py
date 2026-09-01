@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import pytest
 
-from transkript.datatypes import SourceInfo
-from transkript.jobqueue.db import Database
+from palaskript.datatypes import SourceInfo
+from palaskript.jobqueue.db import Database
 
 
 @pytest.fixture

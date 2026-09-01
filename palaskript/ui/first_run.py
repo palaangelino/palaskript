@@ -58,7 +58,7 @@ class FirstRunDialog(QDialog):
 
     def __init__(self, settings: Settings, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Transkript kurulumu")
+        self.setWindowTitle("Palaskript kurulumu")
         self.setMinimumWidth(600)
         self._settings = settings
         self._hw = detect()
@@ -128,6 +128,11 @@ class FirstRunDialog(QDialog):
                 "makinedeki gerçek bellek kullanımını ölçüp ayarları kendisi düzeltir."
             )
         )
+
+        layout.addSpacing(4)
+        credit = _muted("© Selçuk Abi'nin fikridir, kopyalanamaz.")
+        credit.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(credit)
 
         row = QHBoxLayout()
         row.addStretch(1)

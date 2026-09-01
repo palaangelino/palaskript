@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from helpers import seg
 
-from transkript.checkpoint import Checkpoint, has_checkpoint
-from transkript.datatypes import Segment
+from palaskript.checkpoint import Checkpoint, has_checkpoint
+from palaskript.datatypes import Segment
 
 
 class TestRoundTrip:

@@ -1,4 +1,4 @@
-# Transkript
+# Palaskript
 
 YouTube linkinden veya yerel videodan **PDF transkript** ureten Windows masaustu
 uygulamasi. Transkripsiyon tamamen **yerelde** calisiyor: ses hicbir zaman
@@ -29,14 +29,14 @@ Link yapistir, kuyruga at, PDF al.
 
 ## Kurulum (kullanici)
 
-`dist/Transkript-Setup-1.0.0.exe` dosyasini calistirin (96 MB, kuruldugunda
+`dist/Palaskript-Setup-1.0.0.exe` dosyasini calistirin (96 MB, kuruldugunda
 diskte ~350 MB). Yonetici hakki istemiyor, kullanici klasorune kuruluyor.
 
 Imzasiz oldugu icin Windows SmartScreen uyarisi cikar:
 **Daha fazla bilgi > Yine de calistir**.
 
-Ilk baslatmada Whisper modeli iniyor (varsayilan `large-v3-turbo`, ~1.6 GB).
-Model `%LOCALAPPDATA%\Transkript\models` altinda kaliyor, bir kez iniyor.
+Ilk baslatmada dil modeli iniyor (varsayilan `large-v3-turbo`, ~1.6 GB).
+Model `%LOCALAPPDATA%\Palaskript\models` altinda kaliyor, bir kez iniyor.
 Modeller kurulum dosyasina BILEREK dahil edilmedi: `large-v3` tek basina 3 GB.
 
 ---
@@ -61,7 +61,7 @@ zaman**. Ayni oranla 3.5 saatlik video ~2.8 saat eder.
 
 > Tablodaki RAM rakamlari hala **tahmin**. Kendi makinenizde olcmek icin
 > `scripts/benchmark.py` kullanin; gercek tepe RSS degerleri
-> `transkript/resources.py` icindeki katalogla karsilastirilir.
+> `palaskript/resources.py` icindeki katalogla karsilastirilir.
 
 Uygulama, kuyruk calisirken bilgisayarin uyumasini engelliyor ve isci sureci
 dusuk oncelikte calistiriyor: gece boyu suren bir is sirasinda bilgisayar
@@ -74,7 +74,7 @@ Kurulum sirasinda olcum yapilmiyor: olcum icin modelin inmis olmasi gerekir
 
 Bunun yerine olcum ZATEN YAPILAN ISTEN aliniyor. Ilk isiniz bittiginde bu
 makinenin gercek tepe bellegi ve hizi kaydediliyor
-(`%APPDATA%\Transkript\calibration.json`), sonraki isler tahmin yerine bu
+(`%APPDATA%\Palaskript\calibration.json`), sonraki isler tahmin yerine bu
 degerle boyutlaniyor. Model beklenenden agir ciktiysa yigin boyutu
 kendiliginden kuculuyor. Hicbir ek bekleme yok.
 
@@ -87,8 +87,8 @@ model istege bagli olarak o anda indirilebiliyor.
 ## Gelistirme
 
 ```bash
-git clone <repo> transkript
-cd transkript
+git clone <repo> palaskript
+cd palaskript
 py -3.12 -m venv .venv
 .venv\Scripts\pip install -e ".[dev]"
 ```
@@ -96,21 +96,21 @@ py -3.12 -m venv .venv
 Kalite kapisi:
 
 ```bash
-.venv\Scripts\ruff check transkript tests scripts
+.venv\Scripts\ruff check palaskript tests scripts
 .venv\Scripts\pytest tests -q
 ```
 
 Arayuzu calistir:
 
 ```bash
-.venv\Scripts\python run_transkript.py
+.venv\Scripts\python run_palaskript.py
 ```
 
 Komut satirindan tek is (arayuz olmadan uctan uca hat):
 
 ```bash
-.venv\Scripts\python -m transkript.cli "https://www.youtube.com/watch?v=..." --lang tr
-.venv\Scripts\python -m transkript.cli --info
+.venv\Scripts\python -m palaskript.cli "https://www.youtube.com/watch?v=..." --lang tr
+.venv\Scripts\python -m palaskript.cli --info
 ```
 
 Donanim olcumu (model secimini buradan yapin):
@@ -129,12 +129,12 @@ Uretilen ciktilar:
 
 | Cikti | Boyut |
 |---|---|
-| `dist/Transkript/` (calisir paket) | ~350 MB |
-| `dist/Transkript-Setup-1.0.0.exe` | ~96 MB |
+| `dist/Palaskript/` (calisir paket) | ~350 MB |
+| `dist/Palaskript-Setup-1.0.0.exe` | ~96 MB |
 
 PyInstaller adimi bu makinede ~4.5 dakika suruyor.
 
-Inno Setup kurulu degilse sadece `dist/Transkript/` klasoru uretilir, uygulama
+Inno Setup kurulu degilse sadece `dist/Palaskript/` klasoru uretilir, uygulama
 yine calisir. Kurmak icin: `winget install JRSoftware.InnoSetup`
 
 ---
@@ -250,9 +250,9 @@ isterseniz dogru format Opus 24 kbps mono (3.5 saat ~38 MB), `audio.export_archi
 
 | Ne | Nerede |
 |---|---|
-| Ayarlar, kuyruk, ara kayitlar, kayit dosyalari | `%APPDATA%\Transkript` |
-| Whisper modelleri, gecici ses, guncellenen yt-dlp | `%LOCALAPPDATA%\Transkript` |
-| PDF ve TXT ciktilari | `Belgeler\Transkript` (ayarlardan degistirilebilir) |
+| Ayarlar, kuyruk, ara kayitlar, kayit dosyalari | `%APPDATA%\Palaskript` |
+| Whisper modelleri, gecici ses, guncellenen yt-dlp | `%LOCALAPPDATA%\Palaskript` |
+| PDF ve TXT ciktilari | `Belgeler\Palaskript` (ayarlardan degistirilebilir) |
 
 ---
 

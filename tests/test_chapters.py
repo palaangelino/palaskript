@@ -8,14 +8,14 @@ from __future__ import annotations
 
 import pytest
 
-from transkript.chapters import (
+from palaskript.chapters import (
     assign_paragraphs,
     auto_chapters,
     build_chapters,
     format_timestamp,
     normalize_chapters,
 )
-from transkript.datatypes import Chapter, Paragraph, SourceInfo
+from palaskript.datatypes import Chapter, Paragraph, SourceInfo
 
 
 def para(start: float, end: float, text: str = "metin") -> Paragraph:

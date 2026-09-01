@@ -1,6 +1,6 @@
 """Ikon ve kurulum sihirbazi gorsellerini uret.
 
-Hepsi ayni paletten cikiyor (transkript/ui/theme.py): krem zeminler, sicak gri
+Hepsi ayni paletten cikiyor (palaskript/ui/theme.py): krem zeminler, sicak gri
 kenarliklar, siyah yazi, tek turuncu vurgu. Kurulum ekrani ile uygulama ayni
 dili konussun diye tek bir betikten uretiliyorlar.
 
@@ -40,6 +40,10 @@ ICON_SIZES = [16, 24, 32, 48, 64, 128, 256]
 # Dalga cubuklarinin goreli yukseklikleri. Ortadaki turuncu.
 HEIGHTS = [0.34, 0.62, 0.94, 0.70, 0.44]
 
+# Ikon icindeki kalbin cubuklari. 16 pikselde okunabilmesi icin bes degil uc:
+# kalbin ic alani kareden dar, bes cubuk lapa gibi cikiyor.
+HEART_BAR_HEIGHTS = [0.60, 1.0, 0.72]
+
 
 def _font(name: str, size: int) -> ImageFont.FreeTypeFont:
     path = FONT_DIR / name
@@ -78,6 +82,82 @@ def draw_mark(size: int, *, background=MARK_BG, bar=MARK_BAR, accent=ACCENT, rad
     return image.resize((size, size), Image.LANCZOS)
 
 
+def _heart_polygon(canvas: int, *, inset: float = 0.0) -> list[tuple[float, float]]:
+    """Klasik kalp egrisi.
+
+    Iki daire + ucgen yerine parametrik egri kullaniliyor: omuzlari yumusak,
+    ucu sivri cikiyor ve kucuk boyutlarda daha okunakli oluyor.
+    """
+    import math
+
+    points: list[tuple[float, float]] = []
+    steps = 400
+    scale = (canvas / 34.0) * (1.0 - inset)
+    for i in range(steps):
+        t = 2 * math.pi * i / steps
+        x = 16 * math.sin(t) ** 3
+        y = 13 * math.cos(t) - 5 * math.cos(2 * t) - 2 * math.cos(3 * t) - math.cos(4 * t)
+        points.append((canvas / 2 + x * scale, canvas / 2 - y * scale))
+    return points
+
+
+def draw_heart_mark(size: int) -> Image.Image:
+    """Uygulama isareti: kalp seklinde, icinde ses cubuklari.
+
+    Kalp DOLU cizilip cubuklar uzerine krem renkte konuyor; cubuklar kalbin
+    disina tasmasin diye kalp maskesiyle kirpiliyor.
+    """
+    scale = 8
+    canvas = size * scale
+    image = Image.new("RGBA", (canvas, canvas), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    draw.polygon(_heart_polygon(canvas), fill=ACCENT)
+
+    # Cubuklar ayri katmanda; kalp maskesiyle kirpilacak.
+    bars = Image.new("RGBA", (canvas, canvas), (0, 0, 0, 0))
+    bars_draw = ImageDraw.Draw(bars)
+    count = len(HEART_BAR_HEIGHTS)
+    bar_width = canvas * 0.088
+    gap = canvas * 0.062
+    total = count * bar_width + (count - 1) * gap
+    x = (canvas - total) / 2
+    # Cubuklar kalbin GOVDESINE oturmali. Merkeze koyunca en uzun cubuk ustteki
+    # centige giriyor ve kirik gorunuyor; biraz asagi aliniyor.
+    centre_y = canvas * 0.52
+    for height in HEART_BAR_HEIGHTS:
+        half = canvas * 0.135 * height
+        bars_draw.rounded_rectangle(
+            [x, centre_y - half, x + bar_width, centre_y + half],
+            radius=bar_width / 2,
+            fill=MARK_BAR,
+        )
+        x += bar_width + gap
+
+    mask = Image.new("L", (canvas, canvas), 0)
+    ImageDraw.Draw(mask).polygon(_heart_polygon(canvas, inset=0.16), fill=255)
+    image.paste(bars, (0, 0), Image.composite(bars.split()[3], Image.new("L", (canvas, canvas), 0), mask))
+
+    return image.resize((size, size), Image.LANCZOS)
+
+
+def build_heart_glyph() -> None:
+    """Altbilgideki kalp.
+
+    Metne gomulu bir karakter olarak yazamiyoruz: paketlenmis font U+2665
+    tasimiyor ve Qt o karakter icin sistem emoji fontuna dusuyor, yani araya
+    renkli bir emoji giriyor. Kucuk bir gorsel olarak cizmek hem garanti hem
+    palete uygun.
+    """
+    for name, colour, size in (("heart-accent.png", ACCENT, 13), ("heart-ink.png", INK, 13)):
+        scale = 16
+        canvas = size * scale
+        image = Image.new("RGBA", (canvas, canvas), (0, 0, 0, 0))
+        ImageDraw.Draw(image).polygon(_heart_polygon(canvas), fill=colour)
+        target = ASSETS / name
+        image.resize((size, size), Image.LANCZOS).save(target, format="PNG")
+        print(f"yazildi: {target.name}")
+
+
 def build_check_marks() -> None:
     """Onay kutusu tikleri.
 
@@ -111,7 +191,7 @@ def build_check_marks() -> None:
 
 
 def build_icon() -> None:
-    frames = [draw_mark(size) for size in ICON_SIZES]
+    frames = [draw_heart_mark(size) for size in ICON_SIZES]
     target = ASSETS / "icon.ico"
     frames[-1].save(target, format="ICO", sizes=[(s, s) for s in ICON_SIZES])
     frames[-1].save(target.with_suffix(".png"), format="PNG")
@@ -129,7 +209,7 @@ def build_wizard_large(width: int, height: int) -> Image.Image:
     draw.line([(0, band_top), (width, band_top)], fill=BORDER, width=1)
 
     mark_size = int(width * 0.42)
-    mark = draw_mark(mark_size)
+    mark = draw_heart_mark(mark_size)
     image.paste(mark, ((width - mark_size) // 2, int(height * 0.16)), mark)
 
     title_font = _font("IBMPlexSans-SemiBold.ttf", max(16, int(width * 0.115)))
@@ -166,7 +246,7 @@ def build_wizard_small(size_w: int, size_h: int) -> Image.Image:
     """Diger sayfalarda sag ustte duran kucuk gorsel."""
     image = Image.new("RGB", (size_w, size_h), CREAM)
     mark_size = int(min(size_w, size_h) * 0.82)
-    mark = draw_mark(mark_size)
+    mark = draw_heart_mark(mark_size)
     image.paste(mark, ((size_w - mark_size) // 2, (size_h - mark_size) // 2), mark)
     return image
 
@@ -197,6 +277,7 @@ def main() -> int:
             file=sys.stderr,
         )
     build_icon()
+    build_heart_glyph()
     build_check_marks()
     build_installer_images()
     return 0

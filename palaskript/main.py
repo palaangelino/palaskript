@@ -13,7 +13,7 @@ from . import APP_NAME, __version__, paths, ytdlp_update
 def _setup_logging() -> None:
     paths.ensure_dirs()
     handler = RotatingFileHandler(
-        paths.logs_dir() / "transkript.log",
+        paths.logs_dir() / "palaskript.log",
         maxBytes=2 * 1024 * 1024,
         backupCount=3,
         encoding="utf-8",
@@ -33,7 +33,7 @@ def _excepthook(exc_type, exc_value, exc_tb) -> None:  # noqa: ANN001 - sys imza
 
     Sessizce kapanan bir uygulama, hata mesaji veren uygulamadan cok daha kotu.
     """
-    logging.getLogger("transkript").critical(
+    logging.getLogger("palaskript").critical(
         "Yakalanmamis hata", exc_info=(exc_type, exc_value, exc_tb)
     )
     try:
@@ -56,7 +56,7 @@ def main() -> int:
     # yt_dlp import edilmeden ONCE: kullanicinin guncelledigi surum varsa o
     # kullanilsin. YouTube degistikce paketlenmis surum eskiyor.
     if ytdlp_update.activate():
-        logging.getLogger("transkript").info("Kullanici dizinindeki yt-dlp kullaniliyor")
+        logging.getLogger("palaskript").info("Kullanici dizinindeki yt-dlp kullaniliyor")
 
     from PySide6.QtCore import Qt
     from PySide6.QtGui import QIcon

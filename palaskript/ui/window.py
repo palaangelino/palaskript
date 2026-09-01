@@ -121,7 +121,7 @@ class MainWindow(QMainWindow):
         self._resolve_worker: ResolveWorker | None = None
         self._last_clipboard = ""
 
-        self.setWindowTitle(f"Transkript {__version__}")
+        self.setWindowTitle(f"Palaskript {__version__}")
         self.resize(1000, 620)
         self.setAcceptDrops(True)
 
@@ -167,7 +167,7 @@ class MainWindow(QMainWindow):
         self.decision_label = QLabel()
         self.decision_subs = QPushButton("Hazır altyazıyı kullan")
         self.decision_subs.setProperty("primary", True)
-        self.decision_whisper = QPushButton("Whisper ile yaz")
+        self.decision_whisper = QPushButton("Palaskript ile yaz")
         self.decision_subs.clicked.connect(lambda: self._decide_all(True))
         self.decision_whisper.clicked.connect(lambda: self._decide_all(False))
         self._fill_banner(
@@ -202,6 +202,12 @@ class MainWindow(QMainWindow):
 
         self.profile_label = QLabel()
         self.statusBar().addPermanentWidget(self.profile_label)
+
+        separator = QLabel("|")
+        separator.setProperty("muted", True)
+        self.statusBar().addPermanentWidget(separator)
+        self.statusBar().addPermanentWidget(theme.credit_widget())
+
         self._update_profile_label()
 
     def _banner(self, tone: str) -> QWidget:
@@ -255,7 +261,7 @@ class MainWindow(QMainWindow):
         icon_path = paths.assets_dir() / "icon.ico"
         icon = QIcon(str(icon_path)) if icon_path.exists() else self.windowIcon()
         self.tray = QSystemTrayIcon(icon, self)
-        self.tray.setToolTip("Transkript")
+        self.tray.setToolTip("Palaskript")
         self.tray.show()
 
     # -------------------------------------------------------------- ekleme
@@ -436,7 +442,7 @@ class MainWindow(QMainWindow):
             menu.addAction(
                 "Hazır altyazıyı kullan", lambda: self._decide_one(job.id, True)
             )
-            menu.addAction("Whisper ile yaz", lambda: self._decide_one(job.id, False))
+            menu.addAction("Palaskript ile yaz", lambda: self._decide_one(job.id, False))
             menu.addSeparator()
         if job.status == "done":
             if job.pdf_path:
@@ -542,7 +548,7 @@ class MainWindow(QMainWindow):
             langs = waiting[0].manual_sub_langs or "?"
             text = (
                 f"\"{waiting[0].title}\" videosunda hazır altyazı var ({langs}). "
-                "Altyazıyı kullanmak saniyeler sürer, Whisper ile yazmak saatler."
+                "Altyazıyı kullanmak saniyeler sürer, yeniden yazmak saatler."
             )
         else:
             text = f"{len(waiting)} videoda hazır altyazı var. Nasıl devam edilsin?"

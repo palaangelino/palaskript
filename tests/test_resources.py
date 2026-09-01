@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from transkript.resources import (
+from palaskript.resources import (
     DEFAULT_MODEL,
     FALLBACK_MODEL,
     MODEL_CATALOG,

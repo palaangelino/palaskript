@@ -13,11 +13,11 @@ from pathlib import Path
 import pytest
 from pypdf import PdfReader
 
-from transkript.config import Settings
-from transkript.datatypes import Chapter, Paragraph, SourceInfo, TranscriptDoc
-from transkript.export import fonts
-from transkript.export import pdf as pdf_export
-from transkript.export import txt as txt_export
+from palaskript.config import Settings
+from palaskript.datatypes import Chapter, Paragraph, SourceInfo, TranscriptDoc
+from palaskript.export import fonts
+from palaskript.export import pdf as pdf_export
+from palaskript.export import txt as txt_export
 
 TURKISH = "Gunaydin! Sicak cay ictik, cocuklar okula gitti. Ismail ogle yemegi hazirladi."
 
